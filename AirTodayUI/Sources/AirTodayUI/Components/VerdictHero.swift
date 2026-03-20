@@ -67,7 +67,7 @@ public struct VerdictHero: View {
 
         Spacer()
 
-        // === ZONE 1: Air Quality (top) ===
+        // === ZONE 1: Air Quality (vertically centered) ===
         VStack(spacing: 0) {
             Text(guidance.verdict)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -104,19 +104,18 @@ public struct VerdictHero: View {
             .foregroundStyle(.white.opacity(0.9))
             .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
             .padding(.top, 4)
+
+            // Conditions inline below AQI
+            conditionsRow(quality.weather)
+                .padding(.top, 48)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(quality.level.verdict). Air Quality Index \(quality.aqi), \(quality.level.label)")
 
         Spacer()
 
-        // === ZONE 2: Conditions (middle) ===
-        conditionsRow(quality.weather)
-
-        Spacer()
-
-        // === ZONE 3: Location + swipe hint (bottom) ===
-        VStack(spacing: 8) {
+        // === ZONE 2: Location + swipe hint (bottom) ===
+        VStack(spacing: 6) {
             Text(quality.station.name)
                 .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(.white.opacity(0.8))
@@ -140,7 +139,7 @@ public struct VerdictHero: View {
                 .padding(.top, 4)
                 .accessibilityHidden(true)
         }
-        Spacer().frame(maxHeight: 20)
+        .padding(.bottom, 40)
     }
 
     @ViewBuilder

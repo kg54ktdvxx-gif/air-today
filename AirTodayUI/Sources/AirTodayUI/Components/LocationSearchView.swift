@@ -10,6 +10,7 @@ public struct LocationSearchView: View {
     @State private var isSearching = false
     @State private var hasSearched = false
     @State private var searchError: String?
+    @State private var searchTask: Task<Void, Never>?
     private let service = AirQualityService(token: AppConstants.waqiToken)
 
     public init(locationManager: LocationManager) {
@@ -79,7 +80,25 @@ public struct LocationSearchView: View {
             .navigationTitle("Add Location")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $query, prompt: "Search cities or stations")
+            .onChange(of: query) { _, newValue in
+                searchTask?.cancel()
+                let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                guard trimmed.count >= 2 else {
+                    if trimmed.isEmpty {
+                        results = []
+                        hasSearched = false
+                        searchError = nil
+                    }
+                    return
+                }
+                searchTask = Task {
+                    try? await Task.sleep(for: .milliseconds(350))
+                    guard !Task.isCancelled else { return }
+                    await search()
+                }
+            }
             .onSubmit(of: .search) {
+                searchTask?.cancel()
                 Task { await search() }
             }
             .toolbar {
