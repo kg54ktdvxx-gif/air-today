@@ -42,6 +42,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen: ""
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_UIRequiresFullScreen: true
         INFOPLIST_KEY_NSSupportsLiveActivities: true
         INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates: true
         GENERATE_INFOPLIST_FILE: true

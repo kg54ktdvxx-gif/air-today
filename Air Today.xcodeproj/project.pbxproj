@@ -65,18 +65,18 @@
 		2405941B5539F309B4B1A82A /* AirTodayWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AirTodayWidget.entitlements; sourceTree = "<group>"; };
 		3989B624C3D78C696BA519C8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		40E3C1D7F434E71E88A3A406 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		44CBC809A2CB58E8A337CF79 /* AirTodayLiveActivityExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AirTodayLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		48FACEF71CB7C13D658740C5 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		64ADF4C00D11BB8AC93F3CB6 /* Air Today.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Air Today.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		44CBC809A2CB58E8A337CF79 /* AirTodayLiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AirTodayLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		48FACEF71CB7C13D658740C5 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		64ADF4C00D11BB8AC93F3CB6 /* Air Today.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Air Today.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		767816837DC52CC8A6E64ABF /* AirTodayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirTodayApp.swift; sourceTree = "<group>"; };
 		78691BA80D0612A2853D2867 /* WidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetViews.swift; sourceTree = "<group>"; };
-		B6168BB18E1293489CE51BA3 /* AirTodayCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AirTodayCore; path = AirTodayCore; sourceTree = SOURCE_ROOT; };
+		B6168BB18E1293489CE51BA3 /* AirTodayCore */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AirTodayCore; sourceTree = SOURCE_ROOT; };
 		B699B8D360AC1F9BBFA0F5E0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BCCB890D312C0D0188D08FFF /* AirQualityLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirQualityLiveActivity.swift; sourceTree = "<group>"; };
-		D8B7E72A6EFF893805434F9B /* AirTodayWidgetExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AirTodayWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8B7E72A6EFF893805434F9B /* AirTodayWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AirTodayWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6E62BFA46CDC634FF153A97 /* AQIWidgetProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AQIWidgetProvider.swift; sourceTree = "<group>"; };
 		E78F5DF79C70E93F5C5C868F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		EA34F7F4D4A2C5201C2356DF /* AirTodayUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AirTodayUI; path = AirTodayUI; sourceTree = SOURCE_ROOT; };
+		EA34F7F4D4A2C5201C2356DF /* AirTodayUI */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AirTodayUI; sourceTree = SOURCE_ROOT; };
 		F0785F090CFD99693E5BE383 /* AirToday.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AirToday.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -265,8 +265,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = DDAD55D7FD9052D2C91D197C /* Build configuration list for PBXProject "Air Today" */;
 			developmentRegion = en;
@@ -365,6 +363,7 @@
 				CODE_SIGN_ENTITLEMENTS = AirTodayApp/AirToday.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AirTodayApp/Info.plist;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Air Today uses your location to show nearby air quality data.";
@@ -374,6 +373,7 @@
 				INFOPLIST_KEY_UIBackgroundModes = fetch;
 				INFOPLIST_KEY_UILaunchScreen = "";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -392,6 +392,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = AirTodayWidget/AirTodayWidget.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AirTodayWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -413,6 +414,7 @@
 				CODE_SIGN_ENTITLEMENTS = AirTodayApp/AirToday.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AirTodayApp/Info.plist;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Air Today uses your location to show nearby air quality data.";
@@ -422,6 +424,7 @@
 				INFOPLIST_KEY_UIBackgroundModes = fetch;
 				INFOPLIST_KEY_UILaunchScreen = "";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -497,6 +500,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = AirTodayWidget/AirTodayWidget.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AirTodayWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -579,6 +583,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AirTodayLiveActivity/Info.plist;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -598,6 +603,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AirTodayLiveActivity/Info.plist;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
