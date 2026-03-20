@@ -187,57 +187,12 @@ public struct VerdictHero: View {
             items.append(("thermometer.medium", "\(Int(temp))°", "Temp"))
         }
 
-        // 3. UV Index (peak for today, 0 after sunset)
-        if let todayUVI = uviForecast.first(where: { guard let d = $0.date else { return false }; return Calendar.current.isDateInToday(d) }) {
-            let isNight: Bool = {
-                guard let quality, let tzOffset = quality.timeZoneOffset else { return false }
-                let lat = quality.station.coordinate.latitude
-                let lng = quality.station.coordinate.longitude
-                guard let sunset = SunCalculator.sunset(latitude: lat, longitude: lng, timeZoneOffset: tzOffset),
-                      let sunrise = SunCalculator.sunrise(latitude: lat, longitude: lng, timeZoneOffset: tzOffset)
-                else { return false }
-                let now = Date()
-                return now > sunset || now < sunrise
-            }()
-            let uvValue = isNight ? 0 : todayUVI.max
-            items.append(("sun.max.fill", "\(uvValue)", "UV"))
+        // 3. Wind (if notable)
+        if let wind = weather.windSpeed, wind >= 3.0 {
+            items.append(("wind", String(format: "%.0f m/s", wind), "Wind"))
         }
-
-        // 4. Weather summary (derived from conditions)
-        let (weatherIcon, weatherLabel) = Self.weatherSummary(weather, quality: quality)
-        items.append((weatherIcon, weatherLabel, "Weather"))
 
         return items
-    }
-
-    /// Derive a simple weather summary from available data.
-    private static func weatherSummary(_ weather: Weather, quality: AirQuality?) -> (icon: String, label: String) {
-        // Check if it's currently nighttime at the station
-        let isNight: Bool = {
-            guard let quality, let tzOffset = quality.timeZoneOffset else { return false }
-            let lat = quality.station.coordinate.latitude
-            let lng = quality.station.coordinate.longitude
-            guard let sunset = SunCalculator.sunset(latitude: lat, longitude: lng, timeZoneOffset: tzOffset),
-                  let sunrise = SunCalculator.sunrise(latitude: lat, longitude: lng, timeZoneOffset: tzOffset)
-            else { return false }
-            let now = Date()
-            return now > sunset || now < sunrise
-        }()
-
-        let humidity = weather.humidity ?? 0
-        let wind = weather.windSpeed ?? 0
-
-        if humidity > 85 {
-            return ("humidity.fill", "Humid")
-        } else if humidity > 70 {
-            return ("cloud.fill", "Overcast")
-        } else if wind > 10 {
-            return ("wind", "Windy")
-        } else if isNight {
-            return ("moon.stars.fill", "Clear Night")
-        } else {
-            return ("sun.max.fill", "Clear")
-        }
     }
 
     private static func updatedText(_ date: Date) -> String {

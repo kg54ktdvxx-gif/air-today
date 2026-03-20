@@ -260,7 +260,6 @@ public struct LocationPage: View {
 
     private func conditionsCard(quality: AirQuality) -> some View {
         let weather = quality.weather
-        let uviForecast = quality.uviForecast
 
         return VStack(alignment: .leading, spacing: 0) {
             Text("Conditions")
@@ -300,25 +299,8 @@ public struct LocationPage: View {
             }
             .padding(DS.spacingLG)
 
-            // UV Index row (peak for today, 0 after sunset)
-            if let todayUVI = uviForecast.first(where: { guard let d = $0.date else { return false }; return Calendar.current.isDateInToday(d) }) {
-                let isNight: Bool = {
-                    guard let tzOffset = quality.timeZoneOffset else { return false }
-                    let lat = quality.station.coordinate.latitude
-                    let lng = quality.station.coordinate.longitude
-                    guard let sunset = SunCalculator.sunset(latitude: lat, longitude: lng, timeZoneOffset: tzOffset),
-                          let sunrise = SunCalculator.sunrise(latitude: lat, longitude: lng, timeZoneOffset: tzOffset)
-                    else { return false }
-                    let now = Date()
-                    return now > sunset || now < sunrise
-                }()
-                let uvValue = isNight ? 0 : todayUVI.max
-                DS.divider
-                    .padding(.horizontal, DS.spacingLG)
-                UVIndexRow(uvIndex: uvValue)
-                    .padding(.horizontal, DS.spacingLG)
-                    .padding(.vertical, DS.spacingSM)
-            }
+            // UV Index removed — WAQI only provides daily forecast (avg/min/max),
+            // not real-time UV. Showing forecast peak was misleading vs Apple Weather.
         }
         .background { DS.cardBackground }
     }
