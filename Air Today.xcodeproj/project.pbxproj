@@ -1,0 +1,688 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0271CBED048137680DCE1FF6 /* AirTodayCore in Frameworks */ = {isa = PBXBuildFile; productRef = BFB2D4F7A6F1EB9CC2ED49DA /* AirTodayCore */; };
+		1199FACA0C3290A0CBBE0617 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B699B8D360AC1F9BBFA0F5E0 /* Assets.xcassets */; };
+		1D8BBFDCB5C1E03AAECD50A1 /* AirTodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1961090D9FBC23DBC75D1931 /* AirTodayWidget.swift */; };
+		2A2256FF476226AC7680BF4A /* AirTodayLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 44CBC809A2CB58E8A337CF79 /* AirTodayLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		513A9F09EB264812C585D5F7 /* AirTodayLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05650F1B157CC946C6C24E82 /* AirTodayLiveActivityBundle.swift */; };
+		5FAE4387153C3A34F779F2C4 /* AirQualityLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCCB890D312C0D0188D08FFF /* AirQualityLiveActivity.swift */; };
+		8685C771CB0BC85DE13D4938 /* AirTodayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 767816837DC52CC8A6E64ABF /* AirTodayApp.swift */; };
+		8B88524099E2987B99AEC77F /* AirTodayUI in Frameworks */ = {isa = PBXBuildFile; productRef = AF973EAEA0DF8AD409D91A09 /* AirTodayUI */; };
+		959FA6121D1D54BE93E6BA3E /* AQIWidgetProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E62BFA46CDC634FF153A97 /* AQIWidgetProvider.swift */; };
+		AB1D9CAAC54DFC93300BB827 /* WidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78691BA80D0612A2853D2867 /* WidgetViews.swift */; };
+		AD28C0C0AE9ECFD4E1E33203 /* AirTodayWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D8B7E72A6EFF893805434F9B /* AirTodayWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B26B85D1272BC8F5E69E378D /* Atmosphere.metal in Sources */ = {isa = PBXBuildFile; fileRef = 21B46E0136F8217FDEB01073 /* Atmosphere.metal */; };
+		BB6F281E5B097D6DE548BF30 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 40E3C1D7F434E71E88A3A406 /* Assets.xcassets */; };
+		DDA796886BE27829140652C0 /* AirTodayCore in Frameworks */ = {isa = PBXBuildFile; productRef = E0979D6547751125D8DB453C /* AirTodayCore */; };
+		F416312FF8047C0EA07DCC9A /* AirTodayCore in Frameworks */ = {isa = PBXBuildFile; productRef = ED6CC022D51A72D7AE943836 /* AirTodayCore */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		122CE0A3CCB9F7C92350D342 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 13E627BF822B24A97AA515B9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 811DAD58A2E6C870271F5BF6;
+			remoteInfo = AirTodayWidgetExtension;
+		};
+		6668D13CE8A7FCA533B7F88B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 13E627BF822B24A97AA515B9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 59E779E20B7D2954EBAC103F;
+			remoteInfo = AirTodayLiveActivityExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		990CCABEB17A75E0E6450DB2 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AD28C0C0AE9ECFD4E1E33203 /* AirTodayWidgetExtension.appex in Embed Foundation Extensions */,
+				2A2256FF476226AC7680BF4A /* AirTodayLiveActivityExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		05650F1B157CC946C6C24E82 /* AirTodayLiveActivityBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirTodayLiveActivityBundle.swift; sourceTree = "<group>"; };
+		1961090D9FBC23DBC75D1931 /* AirTodayWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirTodayWidget.swift; sourceTree = "<group>"; };
+		1FDE7F3EDF163FB2D59C2B1B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		21B46E0136F8217FDEB01073 /* Atmosphere.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Atmosphere.metal; sourceTree = "<group>"; };
+		2405941B5539F309B4B1A82A /* AirTodayWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AirTodayWidget.entitlements; sourceTree = "<group>"; };
+		3989B624C3D78C696BA519C8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		40E3C1D7F434E71E88A3A406 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		44CBC809A2CB58E8A337CF79 /* AirTodayLiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AirTodayLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		64ADF4C00D11BB8AC93F3CB6 /* Air Today.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Air Today.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		767816837DC52CC8A6E64ABF /* AirTodayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirTodayApp.swift; sourceTree = "<group>"; };
+		78691BA80D0612A2853D2867 /* WidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetViews.swift; sourceTree = "<group>"; };
+		B6168BB18E1293489CE51BA3 /* AirTodayCore */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AirTodayCore; sourceTree = SOURCE_ROOT; };
+		B699B8D360AC1F9BBFA0F5E0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BCCB890D312C0D0188D08FFF /* AirQualityLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirQualityLiveActivity.swift; sourceTree = "<group>"; };
+		D8B7E72A6EFF893805434F9B /* AirTodayWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AirTodayWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E6E62BFA46CDC634FF153A97 /* AQIWidgetProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AQIWidgetProvider.swift; sourceTree = "<group>"; };
+		E78F5DF79C70E93F5C5C868F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		EA34F7F4D4A2C5201C2356DF /* AirTodayUI */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AirTodayUI; sourceTree = SOURCE_ROOT; };
+		F0785F090CFD99693E5BE383 /* AirToday.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AirToday.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0794A132EE67227174491B89 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DDA796886BE27829140652C0 /* AirTodayCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8E6EDFDE5C5F56CD248B6E18 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F416312FF8047C0EA07DCC9A /* AirTodayCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DD1D4ACAC76937E64BAB2805 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0271CBED048137680DCE1FF6 /* AirTodayCore in Frameworks */,
+				8B88524099E2987B99AEC77F /* AirTodayUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0E87DA869476D219B8E1BDF3 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				B6168BB18E1293489CE51BA3 /* AirTodayCore */,
+				EA34F7F4D4A2C5201C2356DF /* AirTodayUI */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		0FB68B5DD5136B4E5372CE68 /* AirTodayApp */ = {
+			isa = PBXGroup;
+			children = (
+				F0785F090CFD99693E5BE383 /* AirToday.entitlements */,
+				767816837DC52CC8A6E64ABF /* AirTodayApp.swift */,
+				40E3C1D7F434E71E88A3A406 /* Assets.xcassets */,
+				3989B624C3D78C696BA519C8 /* Info.plist */,
+				8E9D58F353E41A5EEADA6C04 /* Preview Content */,
+				B9AF2936DFDEE4AACC41F3F8 /* Shaders */,
+			);
+			path = AirTodayApp;
+			sourceTree = "<group>";
+		};
+		1B5665353103C1FA0A50C45F /* AirTodayLiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				BCCB890D312C0D0188D08FFF /* AirQualityLiveActivity.swift */,
+				05650F1B157CC946C6C24E82 /* AirTodayLiveActivityBundle.swift */,
+				1FDE7F3EDF163FB2D59C2B1B /* Info.plist */,
+			);
+			path = AirTodayLiveActivity;
+			sourceTree = "<group>";
+		};
+		8E9D58F353E41A5EEADA6C04 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		9F7AC57942F96C0CAFD4E116 = {
+			isa = PBXGroup;
+			children = (
+				0FB68B5DD5136B4E5372CE68 /* AirTodayApp */,
+				1B5665353103C1FA0A50C45F /* AirTodayLiveActivity */,
+				F88D3904EE2CBF43818B21C0 /* AirTodayWidget */,
+				0E87DA869476D219B8E1BDF3 /* Packages */,
+				F87A3EABF95A2A664177B7C2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B9AF2936DFDEE4AACC41F3F8 /* Shaders */ = {
+			isa = PBXGroup;
+			children = (
+				21B46E0136F8217FDEB01073 /* Atmosphere.metal */,
+			);
+			path = Shaders;
+			sourceTree = "<group>";
+		};
+		F87A3EABF95A2A664177B7C2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				64ADF4C00D11BB8AC93F3CB6 /* Air Today.app */,
+				44CBC809A2CB58E8A337CF79 /* AirTodayLiveActivityExtension.appex */,
+				D8B7E72A6EFF893805434F9B /* AirTodayWidgetExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F88D3904EE2CBF43818B21C0 /* AirTodayWidget */ = {
+			isa = PBXGroup;
+			children = (
+				2405941B5539F309B4B1A82A /* AirTodayWidget.entitlements */,
+				1961090D9FBC23DBC75D1931 /* AirTodayWidget.swift */,
+				E6E62BFA46CDC634FF153A97 /* AQIWidgetProvider.swift */,
+				B699B8D360AC1F9BBFA0F5E0 /* Assets.xcassets */,
+				E78F5DF79C70E93F5C5C868F /* Info.plist */,
+				78691BA80D0612A2853D2867 /* WidgetViews.swift */,
+			);
+			path = AirTodayWidget;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		59E779E20B7D2954EBAC103F /* AirTodayLiveActivityExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 54137572D0606708B3FD72F0 /* Build configuration list for PBXNativeTarget "AirTodayLiveActivityExtension" */;
+			buildPhases = (
+				A8895B1933E0011E124B5F8A /* Sources */,
+				0794A132EE67227174491B89 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AirTodayLiveActivityExtension;
+			packageProductDependencies = (
+				E0979D6547751125D8DB453C /* AirTodayCore */,
+			);
+			productName = AirTodayLiveActivityExtension;
+			productReference = 44CBC809A2CB58E8A337CF79 /* AirTodayLiveActivityExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		811DAD58A2E6C870271F5BF6 /* AirTodayWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 610239FE3DD8CDF5C6596297 /* Build configuration list for PBXNativeTarget "AirTodayWidgetExtension" */;
+			buildPhases = (
+				C6EB59A11A92D374B2EFB2FE /* Sources */,
+				275D53134FD1F12FE7F918E3 /* Resources */,
+				8E6EDFDE5C5F56CD248B6E18 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AirTodayWidgetExtension;
+			packageProductDependencies = (
+				ED6CC022D51A72D7AE943836 /* AirTodayCore */,
+			);
+			productName = AirTodayWidgetExtension;
+			productReference = D8B7E72A6EFF893805434F9B /* AirTodayWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		900F5B09E41273D8FD20EE3B /* Air Today */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8416351BE855FC96D766FF7C /* Build configuration list for PBXNativeTarget "Air Today" */;
+			buildPhases = (
+				06BF083CEA589D6283B77406 /* Sources */,
+				F24447522E7F3B2598DDBC10 /* Resources */,
+				DD1D4ACAC76937E64BAB2805 /* Frameworks */,
+				990CCABEB17A75E0E6450DB2 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B660C25C01B72F29C380080A /* PBXTargetDependency */,
+				7FBFB0B08F71BC6D1D4B5DCF /* PBXTargetDependency */,
+			);
+			name = "Air Today";
+			packageProductDependencies = (
+				BFB2D4F7A6F1EB9CC2ED49DA /* AirTodayCore */,
+				AF973EAEA0DF8AD409D91A09 /* AirTodayUI */,
+			);
+			productName = "Air Today";
+			productReference = 64ADF4C00D11BB8AC93F3CB6 /* Air Today.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		13E627BF822B24A97AA515B9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = DDAD55D7FD9052D2C91D197C /* Build configuration list for PBXProject "Air Today" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 9F7AC57942F96C0CAFD4E116;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				996040D3A76C851D7F66696A /* XCLocalSwiftPackageReference "AirTodayCore" */,
+				429D171B2B8DE6538756C081 /* XCLocalSwiftPackageReference "AirTodayUI" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F87A3EABF95A2A664177B7C2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				900F5B09E41273D8FD20EE3B /* Air Today */,
+				59E779E20B7D2954EBAC103F /* AirTodayLiveActivityExtension */,
+				811DAD58A2E6C870271F5BF6 /* AirTodayWidgetExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		275D53134FD1F12FE7F918E3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1199FACA0C3290A0CBBE0617 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F24447522E7F3B2598DDBC10 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB6F281E5B097D6DE548BF30 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		06BF083CEA589D6283B77406 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8685C771CB0BC85DE13D4938 /* AirTodayApp.swift in Sources */,
+				B26B85D1272BC8F5E69E378D /* Atmosphere.metal in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A8895B1933E0011E124B5F8A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5FAE4387153C3A34F779F2C4 /* AirQualityLiveActivity.swift in Sources */,
+				513A9F09EB264812C585D5F7 /* AirTodayLiveActivityBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6EB59A11A92D374B2EFB2FE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				959FA6121D1D54BE93E6BA3E /* AQIWidgetProvider.swift in Sources */,
+				1D8BBFDCB5C1E03AAECD50A1 /* AirTodayWidget.swift in Sources */,
+				AB1D9CAAC54DFC93300BB827 /* WidgetViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7FBFB0B08F71BC6D1D4B5DCF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 59E779E20B7D2954EBAC103F /* AirTodayLiveActivityExtension */;
+			targetProxy = 6668D13CE8A7FCA533B7F88B /* PBXContainerItemProxy */;
+		};
+		B660C25C01B72F29C380080A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 811DAD58A2E6C870271F5BF6 /* AirTodayWidgetExtension */;
+			targetProxy = 122CE0A3CCB9F7C92350D342 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		10AA4F527EF18B2B28C30D3D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AirTodayApp/AirToday.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AirTodayApp/Info.plist;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Air Today uses your location to show nearby air quality data.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIBackgroundModes = fetch;
+				INFOPLIST_KEY_UILaunchScreen = "";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				METAL_LIBRARY_OUTPUT_DIR = "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.airtoday.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1EBD5720E1BDBC80F8EA415D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AirTodayWidget/AirTodayWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AirTodayWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.airtoday.app.widget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1EF15DCAD0E7913BB9387BD3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AirTodayApp/AirToday.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AirTodayApp/Info.plist;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Air Today uses your location to show nearby air quality data.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIBackgroundModes = fetch;
+				INFOPLIST_KEY_UILaunchScreen = "";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				METAL_LIBRARY_OUTPUT_DIR = "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.airtoday.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		294F160A6AF6BA582D3D5D89 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		B0FD33916A0338A0946D1910 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AirTodayWidget/AirTodayWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AirTodayWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.airtoday.app.widget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D48AFE0FF8569E987E4F2E28 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		E6D111D5AC7D80BEB261EE7B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AirTodayLiveActivity/Info.plist;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.airtoday.app.liveactivity;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		FE6DD237169E0DC3BBED158F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ML4L5QJ99D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AirTodayLiveActivity/Info.plist;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.airtoday.app.liveactivity;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		54137572D0606708B3FD72F0 /* Build configuration list for PBXNativeTarget "AirTodayLiveActivityExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FE6DD237169E0DC3BBED158F /* Debug */,
+				E6D111D5AC7D80BEB261EE7B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		610239FE3DD8CDF5C6596297 /* Build configuration list for PBXNativeTarget "AirTodayWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1EBD5720E1BDBC80F8EA415D /* Debug */,
+				B0FD33916A0338A0946D1910 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8416351BE855FC96D766FF7C /* Build configuration list for PBXNativeTarget "Air Today" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10AA4F527EF18B2B28C30D3D /* Debug */,
+				1EF15DCAD0E7913BB9387BD3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DDAD55D7FD9052D2C91D197C /* Build configuration list for PBXProject "Air Today" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D48AFE0FF8569E987E4F2E28 /* Debug */,
+				294F160A6AF6BA582D3D5D89 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		429D171B2B8DE6538756C081 /* XCLocalSwiftPackageReference "AirTodayUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = AirTodayUI;
+		};
+		996040D3A76C851D7F66696A /* XCLocalSwiftPackageReference "AirTodayCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = AirTodayCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AF973EAEA0DF8AD409D91A09 /* AirTodayUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AirTodayUI;
+		};
+		BFB2D4F7A6F1EB9CC2ED49DA /* AirTodayCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AirTodayCore;
+		};
+		E0979D6547751125D8DB453C /* AirTodayCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AirTodayCore;
+		};
+		ED6CC022D51A72D7AE943836 /* AirTodayCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AirTodayCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 13E627BF822B24A97AA515B9 /* Project object */;
+}

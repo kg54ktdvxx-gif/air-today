@@ -1,0 +1,12 @@
+# App Store Connect credentials
+# app_identifier "com.airtoday.app"
+# apple_id "busiest-21.qualm@icloud.com"
+# team_name "Owen McLoughlin"
+
+# Uncomment and fill in the above once you have your Apple Developer account details.
+# For App Store Connect API key (recommended over password auth):
+# app_store_connect_api_key(
+#   key_id: "YOUR_KEY_ID",
+#   issuer_id: "YOUR_ISSUER_ID",
+#   key_filepath: "./fastlane/AuthKey.p8"
+# )

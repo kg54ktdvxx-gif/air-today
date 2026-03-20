@@ -1,0 +1,96 @@
+name: Air Today
+options:
+  bundleIdPrefix: com.airtoday
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+
+packages:
+  AirTodayCore:
+    path: AirTodayCore
+  AirTodayUI:
+    path: AirTodayUI
+
+targets:
+  Air Today:
+    type: application
+    platform: iOS
+    sources:
+      - path: AirTodayApp
+    resources:
+      - path: AirTodayApp/PrivacyInfo.xcprivacy
+    dependencies:
+      - package: AirTodayCore
+      - package: AirTodayUI
+      - target: AirTodayWidgetExtension
+      - target: AirTodayLiveActivityExtension
+    entitlements:
+      path: AirTodayApp/AirToday.entitlements
+    settings:
+      base:
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Air Today uses your location to show nearby air quality data."
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UILaunchScreen: ""
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_NSSupportsLiveActivities: true
+        INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates: true
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_FILE: AirTodayApp/Info.plist
+        INFOPLIST_KEY_UIBackgroundModes: "fetch"
+        PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: 1
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        METAL_LIBRARY_OUTPUT_DIR: "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)"
+
+  AirTodayWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AirTodayWidget
+    resources:
+      - path: AirTodayWidget/Assets.xcassets
+    dependencies:
+      - package: AirTodayCore
+    info:
+      path: AirTodayWidget/Info.plist
+      properties:
+        CFBundleDisplayName: "Air Today Widget"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.widget
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: 1
+        GENERATE_INFOPLIST_FILE: true
+    entitlements:
+      path: AirTodayWidget/AirTodayWidget.entitlements
+
+  AirTodayLiveActivityExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AirTodayLiveActivity
+    dependencies:
+      - package: AirTodayCore
+    info:
+      path: AirTodayLiveActivity/Info.plist
+      properties:
+        CFBundleDisplayName: "Air Today Live Activity"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: 1
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_NSSupportsLiveActivities: true

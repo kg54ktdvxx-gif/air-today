@@ -1,0 +1,57 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build the app for release"
+  lane :build do
+    build_app(
+      project: "Air Today.xcodeproj",
+      scheme: "AirToday",
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "AirToday.ipa",
+      clean: true
+    )
+  end
+
+  desc "Upload to TestFlight"
+  lane :beta do
+    build
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Submit to App Store"
+  lane :release do
+    build
+    upload_to_app_store(
+      submit_for_review: false,
+      automatic_release: false,
+      skip_screenshots: true,
+      force: true,
+      metadata_path: "./metadata/fastlane"
+    )
+  end
+
+  desc "Take App Store screenshots"
+  lane :screenshots do
+    capture_screenshots(
+      project: "Air Today.xcodeproj",
+      scheme: "AirTodayUITests",
+      output_directory: "./metadata/screenshots",
+      clear_previous_screenshots: true,
+      devices: [
+        "iPhone 16 Pro Max",
+        "iPhone 16 Pro",
+        "iPhone 16e"
+      ]
+    )
+  end
+
+  desc "Increment build number"
+  lane :bump do
+    increment_build_number(
+      xcodeproj: "Air Today.xcodeproj"
+    )
+  end
+end
