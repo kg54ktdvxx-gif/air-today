@@ -187,9 +187,20 @@ public struct VerdictHero: View {
             items.append(("thermometer.medium", "\(Int(temp))°", "Temp"))
         }
 
-        // 3. UV Index
+        // 3. UV Index (peak for today, 0 after sunset)
         if let todayUVI = uviForecast.first(where: { guard let d = $0.date else { return false }; return Calendar.current.isDateInToday(d) }) {
-            items.append(("sun.max.fill", "\(todayUVI.avg)", "UV"))
+            let isNight: Bool = {
+                guard let quality, let tzOffset = quality.timeZoneOffset else { return false }
+                let lat = quality.station.coordinate.latitude
+                let lng = quality.station.coordinate.longitude
+                guard let sunset = SunCalculator.sunset(latitude: lat, longitude: lng, timeZoneOffset: tzOffset),
+                      let sunrise = SunCalculator.sunrise(latitude: lat, longitude: lng, timeZoneOffset: tzOffset)
+                else { return false }
+                let now = Date()
+                return now > sunset || now < sunrise
+            }()
+            let uvValue = isNight ? 0 : todayUVI.max
+            items.append(("sun.max.fill", "\(uvValue)", "UV"))
         }
 
         // 4. Weather summary (derived from conditions)
