@@ -228,15 +228,15 @@ public struct VerdictHero: View {
         let wind = weather.windSpeed ?? 0
 
         if humidity > 85 {
-            return ("cloud.rain.fill", "Rainy")
+            return ("humidity.fill", "Humid")
         } else if humidity > 70 {
-            return (isNight ? "cloud.moon.fill" : "cloud.sun.fill", "Cloudy")
+            return ("cloud.fill", "Overcast")
         } else if wind > 10 {
             return ("wind", "Windy")
         } else if isNight {
-            return ("moon.stars.fill", "Clear")
+            return ("moon.stars.fill", "Clear Night")
         } else {
-            return ("sun.max.fill", "Sunny")
+            return ("sun.max.fill", "Clear")
         }
     }
 

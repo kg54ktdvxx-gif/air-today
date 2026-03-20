@@ -120,6 +120,12 @@ public struct AirQualityService: AirQualityServiceProtocol {
             throw AirQualityError.apiError(response.data?.city?.name ?? "Unknown station")
         }
 
+        // WAQI returns aqi: "-" for offline stations, decoded as nil.
+        // Without this guard, nil defaults to 0 → misleading "Good" reading.
+        guard feedData.aqi != nil else {
+            throw AirQualityError.stationOffline
+        }
+
         return mapToAirQuality(feedData)
     }
 
@@ -194,6 +200,13 @@ public struct AirQualityService: AirQualityServiceProtocol {
         guard let daily = forecast?.daily else { return [] }
         var results: [DailyForecast] = []
 
+        // Today's date string in device timezone for filtering stale entries.
+        let todayFormatter = DateFormatter()
+        todayFormatter.dateFormat = "yyyy-MM-dd"
+        todayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        todayFormatter.timeZone = .current
+        let today = todayFormatter.string(from: Date())
+
         let pollutantMap: [(String, Pollutant.Kind)] = [
             ("pm25", .pm25), ("pm10", .pm10), ("o3", .o3),
         ]
@@ -201,6 +214,8 @@ public struct AirQualityService: AirQualityServiceProtocol {
         for (key, kind) in pollutantMap {
             guard let entries = daily[key] else { continue }
             for entry in entries {
+                // Filter out past dates — WAQI includes historical forecast days.
+                guard entry.day >= today else { continue }
                 results.append(DailyForecast(
                     pollutant: kind,
                     day: entry.day,

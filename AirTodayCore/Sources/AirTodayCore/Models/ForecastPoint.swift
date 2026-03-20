@@ -44,7 +44,7 @@ public struct UVIForecastPoint: Codable, Sendable, Identifiable {
     }
 
     public var riskLevel: String {
-        switch avg {
+        switch max {
         case 0...2: "Low"
         case 3...5: "Moderate"
         case 6...7: "High"
@@ -57,7 +57,7 @@ public struct UVIForecastPoint: Codable, Sendable, Identifiable {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone(secondsFromGMT: 0)
+        f.timeZone = .current
         return f
     }()
 }

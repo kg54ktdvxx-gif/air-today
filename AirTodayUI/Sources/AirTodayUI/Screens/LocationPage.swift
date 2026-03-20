@@ -59,11 +59,11 @@ public struct LocationPage: View {
         GeometryReader { geo in
             ZStack {
                 // Photo background — the primary visual
-                let parallaxShift = parallaxEnabled ? scrollOffset * 0.3 : 0
+                let parallaxShift = parallaxEnabled ? scrollOffset * 0.5 : 0
                 Image(currentLevel.backgroundImageName)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: geo.size.width, height: geo.size.height + 100)
+                    .frame(width: geo.size.width, height: geo.size.height + 200)
                     .offset(y: -parallaxShift)
                     .clipped()
                     .animation(.easeInOut(duration: 1.0), value: currentLevel)
@@ -131,7 +131,7 @@ public struct LocationPage: View {
         ScrollView(.vertical) {
             VStack(spacing: 0) {
                 heroSection
-                    .frame(minHeight: UIScreen.main.bounds.height * 0.75)
+                    .frame(minHeight: UIScreen.main.bounds.height)
 
                 if let quality = store.currentAQI {
                     detailCards(quality: quality)

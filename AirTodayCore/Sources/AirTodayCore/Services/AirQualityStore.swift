@@ -43,7 +43,7 @@ public final class AirQualityStore {
             }
 
             currentAQI = quality
-            lastRefreshed = Date()
+            lastRefreshed = quality.timestamp
             state = .loaded
 
             // Persist for widget/Live Activity
@@ -77,7 +77,7 @@ public final class AirQualityStore {
         do {
             let quality = try await service.fetchCurrent(latitude: latitude, longitude: longitude)
             currentAQI = quality
-            lastRefreshed = Date()
+            lastRefreshed = quality.timestamp
             state = .loaded
             SharedDataStore.save(quality)
         } catch {

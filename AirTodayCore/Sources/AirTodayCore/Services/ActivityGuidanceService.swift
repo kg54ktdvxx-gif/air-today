@@ -8,8 +8,16 @@ public struct ActivityGuidanceService: Sendable {
         let aqi = quality.aqi
         let level = quality.level
         let weather = quality.weather
-        let hour = Calendar.current.component(.hour, from: date)
         let dominant = quality.dominantPollutant
+
+        // Use station timezone for hour extraction so guidance is correct
+        // even when the device is in a different timezone than the station.
+        var calendar = Calendar.current
+        if let offset = quality.timeZoneOffset,
+           let tz = TimeZone(secondsFromGMT: offset) {
+            calendar.timeZone = tz
+        }
+        let hour = calendar.component(.hour, from: date)
 
         let verdict = buildVerdict(level: level, weather: weather, dominant: dominant, hour: hour)
         let peakWarning = buildPeakWarning(dominant: dominant, hour: hour, aqi: aqi)

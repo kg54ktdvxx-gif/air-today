@@ -64,7 +64,7 @@ struct AQIWidgetProvider: TimelineProvider {
         }
 
         return AQIWidgetEntry(
-            date: quality.timestamp,
+            date: Date(),
             aqi: quality.aqi,
             level: quality.level,
             stationName: quality.station.name,

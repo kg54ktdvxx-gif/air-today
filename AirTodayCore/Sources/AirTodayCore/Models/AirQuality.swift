@@ -41,11 +41,13 @@ public struct AirQuality: Codable, Sendable {
 
     /// Trend based on forecast data for dominant pollutant.
     public var trend: Trend {
-        let relevant = forecast.filter { $0.pollutant == (dominantPollutant ?? .pm25) }
-        guard relevant.count >= 2 else { return .stable }
-
-        let sorted = relevant.sorted { $0.day < $1.day }
-        guard let today = sorted.first, let tomorrow = sorted.dropFirst().first else {
+        let todayString = Self.todayDateString(timeZoneOffset: timeZoneOffset)
+        let relevant = forecast
+            .filter { $0.pollutant == (dominantPollutant ?? .pm25) && $0.day >= todayString }
+            .sorted { $0.day < $1.day }
+        guard relevant.count >= 2,
+              let today = relevant.first,
+              let tomorrow = relevant.dropFirst().first else {
             return .stable
         }
 
@@ -53,6 +55,19 @@ public struct AirQuality: Codable, Sendable {
         if delta > 10 { return .worsening }
         if delta < -10 { return .improving }
         return .stable
+    }
+
+    /// Returns today's date string (yyyy-MM-dd) in the station's local timezone.
+    private static func todayDateString(timeZoneOffset: Int?) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        if let offset = timeZoneOffset {
+            f.timeZone = TimeZone(secondsFromGMT: offset) ?? .current
+        } else {
+            f.timeZone = .current
+        }
+        return f.string(from: Date())
     }
 }
 

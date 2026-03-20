@@ -101,22 +101,45 @@ public struct LocationPager: View {
     // MARK: - Page Indicator
 
     private var pageIndicator: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(locationManager.locations) { location in
                 let isSelected = locationManager.selectedLocationID == location.id
-                Circle()
-                    .fill(.white.opacity(isSelected ? 1.0 : 0.5))
-                    .frame(width: isSelected ? 10 : 8, height: isSelected ? 10 : 8)
-                    .scaleEffect(isSelected ? 1.0 : 0.85)
-                    .overlay {
-                        if isSelected {
-                            Circle()
-                                .stroke(.white.opacity(0.6), lineWidth: 1.5)
-                                .frame(width: 16, height: 16)
-                        }
+                let levelColor = locationManager.store(for: location).currentAQI?.level.color ?? .white
+
+                if isSelected {
+                    // Selected: pill with dot + location name
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 8, height: 8)
+                            .overlay {
+                                Circle()
+                                    .stroke(levelColor, lineWidth: 2)
+                                    .frame(width: 14, height: 14)
+                            }
+
+                        Text(location.isCurrentLocation ? "My Location" : location.name)
+                            .font(.system(.caption2, design: .rounded, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.black.opacity(0.35), in: Capsule())
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                } else {
+                    // Unselected: small dot
+                    Circle()
+                        .fill(.white.opacity(0.4))
+                        .frame(width: 7, height: 7)
+                        .padding(.horizontal, 2)
+                        .padding(.vertical, 5)
+                }
             }
         }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(.black.opacity(0.2), in: Capsule())
         .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: locationManager.selectedLocationID)
     }
