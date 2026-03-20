@@ -32,6 +32,9 @@ targets:
       - target: AirTodayLiveActivityExtension
     entitlements:
       path: AirTodayApp/AirToday.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.airtoday.shared
     settings:
       base:
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Air Today uses your location to show nearby air quality data."
@@ -73,6 +76,9 @@ targets:
         GENERATE_INFOPLIST_FILE: true
     entitlements:
       path: AirTodayWidget/AirTodayWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.airtoday.shared
 
   AirTodayLiveActivityExtension:
     type: app-extension
