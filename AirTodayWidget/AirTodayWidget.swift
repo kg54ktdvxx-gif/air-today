@@ -16,6 +16,8 @@ struct AQIWidget: Widget {
         StaticConfiguration(kind: kind, provider: AQIWidgetProvider()) { entry in
             AQIWidgetEntryView(entry: entry)
                 .containerBackground(for: .widget) {
+                    // Only system families get the rich background.
+                    // Accessory widgets must use the system-provided background per HIG.
                     ZStack {
                         Image(entry.level.backgroundImageName)
                             .resizable()

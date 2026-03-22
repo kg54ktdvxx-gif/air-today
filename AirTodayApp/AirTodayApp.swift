@@ -42,6 +42,18 @@ struct AirTodayApp: App {
                 }
             }
             .preferredColorScheme(.dark)
+            .onOpenURL { url in
+                // Handle widget deep link: airtoday://open
+                guard url.scheme == "airtoday" else { return }
+                // Ensure onboarding is complete so the pager is visible
+                if !hasCompletedOnboarding {
+                    hasCompletedOnboarding = true
+                }
+                // Trigger a refresh when opening from widget
+                Task {
+                    await locationManager.refreshIfNeeded()
+                }
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {

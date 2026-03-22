@@ -43,6 +43,9 @@ public struct LocationPage: View {
 
     private var pageContent: some View {
         ZStack {
+            // Dark base so scrolled content never reveals black void
+            Color(red: 0.08, green: 0.08, blue: 0.1)
+                .ignoresSafeArea()
             atmosphereBackground
             heroScrim
             scrollContent
@@ -59,11 +62,11 @@ public struct LocationPage: View {
         GeometryReader { geo in
             ZStack {
                 // Photo background — the primary visual
-                let parallaxShift = parallaxEnabled ? scrollOffset * 0.5 : 0
+                let parallaxShift = parallaxEnabled ? scrollOffset * 0.8 : 0
                 Image(currentLevel.backgroundImageName)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: geo.size.width, height: geo.size.height + 200)
+                    .frame(width: geo.size.width, height: geo.size.height + 400)
                     .offset(y: -parallaxShift)
                     .clipped()
                     .animation(.easeInOut(duration: 1.0), value: currentLevel)
@@ -85,11 +88,11 @@ public struct LocationPage: View {
                     Spacer()
 
                     LinearGradient(
-                        colors: [.clear, .black.opacity(0.45)],
+                        colors: [.clear, .black.opacity(0.7), .black.opacity(0.9)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 200)
+                    .frame(height: 300)
                 }
 
                 // Optional shader/particle overlay for extra atmosphere
@@ -107,6 +110,7 @@ public struct LocationPage: View {
             .compositingGroup()
         }
         .ignoresSafeArea()
+        .opacity(Double(max(0, 1 - scrollOffset / (UIScreen.main.bounds.height * 0.4))))
         .accessibilityHidden(true)
     }
 

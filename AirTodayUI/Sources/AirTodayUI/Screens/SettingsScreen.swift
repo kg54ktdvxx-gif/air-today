@@ -6,6 +6,8 @@ public struct SettingsScreen: View {
     let locationManager: LocationManager
     @State private var showingSearch = false
     @State private var showingClearConfirmation = false
+    @State private var showingDeleteConfirmation = false
+    @State private var pendingDeleteOffsets: IndexSet?
     @State private var cacheCleared = false
     @AppStorage("parallax_enabled") private var parallaxEnabled = true
     @AppStorage("temp_unit") private var temperatureUnit = "celsius"
@@ -35,7 +37,8 @@ public struct SettingsScreen: View {
                     }
                 }
                 .onDelete { offsets in
-                    locationManager.removeLocation(at: offsets)
+                    pendingDeleteOffsets = offsets
+                    showingDeleteConfirmation = true
                 }
 
                 if locationManager.locations.count < 6 {
@@ -119,6 +122,19 @@ public struct SettingsScreen: View {
             }
         } message: {
             Text("This will remove cached air quality data. Fresh data will be fetched on next refresh.")
+        }
+        .confirmationDialog("Remove Location", isPresented: $showingDeleteConfirmation) {
+            Button("Remove", role: .destructive) {
+                if let offsets = pendingDeleteOffsets {
+                    locationManager.removeLocation(at: offsets)
+                    pendingDeleteOffsets = nil
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDeleteOffsets = nil
+            }
+        } message: {
+            Text("This location will be removed from your list.")
         }
     }
 

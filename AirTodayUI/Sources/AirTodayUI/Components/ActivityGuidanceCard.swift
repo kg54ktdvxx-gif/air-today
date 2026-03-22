@@ -22,6 +22,9 @@ public struct ActivityGuidanceCard: View {
                 header
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("\(guidance.verdict). \(guidance.peakWarning ?? "")")
+            .accessibilityHint(isExpanded ? "Double tap to collapse activity details" : "Double tap to expand activity details")
+            .accessibilityAddTraits(.isButton)
 
             if isExpanded {
                 expandedContent

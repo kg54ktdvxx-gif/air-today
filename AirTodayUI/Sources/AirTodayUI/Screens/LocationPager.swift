@@ -19,13 +19,13 @@ public struct LocationPager: View {
         NavigationStack {
             ZStack {
                 if locationManager.locations.isEmpty {
-                    Color.black.ignoresSafeArea()
+                    emptyStateView
                 } else {
                     pagerContent
                 }
 
                 // Top bar: page dots + settings
-                VStack {
+                VStack(spacing: 0) {
                     HStack {
                         pageIndicator
                         Spacer()
@@ -39,8 +39,14 @@ public struct LocationPager: View {
                         }
                     }
                     .padding(.horizontal, DS.spacingLG)
-                    .opacity(Double(max(0, 1 - scrollOffset / 100)))
-                    .animation(.easeOut(duration: 0.3), value: scrollOffset)
+                    .padding(.vertical, 8)
+                    .background {
+                        // Glass blur appears as user scrolls into detail cards
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .opacity(Double(min(1, max(0, scrollOffset / 200))))
+                            .ignoresSafeArea(edges: .top)
+                    }
                     Spacer()
                 }
 
@@ -142,6 +148,57 @@ public struct LocationPager: View {
         .background(.black.opacity(0.2), in: Capsule())
         .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: locationManager.selectedLocationID)
+    }
+
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                Image(systemName: "aqi.medium")
+                    .font(.system(size: 56))
+                    .foregroundStyle(.white.opacity(0.3))
+
+                Text("No Locations")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+
+                Text("Add a city or enable location access\nto see air quality data")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                    .multilineTextAlignment(.center)
+
+                VStack(spacing: 12) {
+                    if locationService.isDenied {
+                        Button {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            Label("Enable Location", systemImage: "location")
+                                .frame(maxWidth: 220)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.blue)
+                    }
+
+                    Button {
+                        showingSearch = true
+                    } label: {
+                        Label("Add a City", systemImage: "plus")
+                            .frame(maxWidth: 220)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+                }
+                .padding(.top, 8)
+            }
+        }
+        .sheet(isPresented: $showingSearch) {
+            LocationSearchView(locationManager: locationManager)
+        }
     }
 
     // MARK: - Permission Banner

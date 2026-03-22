@@ -34,6 +34,8 @@ public struct LocationSearchView: View {
                         Text(error)
                     } actions: {
                         Button("Try Again") {
+                            searchTask?.cancel()
+                            searchError = nil
                             Task { await search() }
                         }
                     }

@@ -50,7 +50,7 @@ targets:
         INFOPLIST_KEY_UIBackgroundModes: "fetch"
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: 1
+        CURRENT_PROJECT_VERSION: 2
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         METAL_LIBRARY_OUTPUT_DIR: "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)"
 
@@ -73,7 +73,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.widget
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: 1
+        CURRENT_PROJECT_VERSION: 2
         GENERATE_INFOPLIST_FILE: true
     entitlements:
       path: AirTodayWidget/AirTodayWidget.entitlements
@@ -98,6 +98,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: 1
+        CURRENT_PROJECT_VERSION: 2
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_NSSupportsLiveActivities: true

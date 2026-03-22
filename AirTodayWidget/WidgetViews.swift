@@ -7,9 +7,13 @@ struct AQIWidgetEntryView: View {
 
     @Environment(\.widgetFamily) var family
 
+    private var isNoData: Bool {
+        entry.isStale && entry.aqi == 0
+    }
+
     var body: some View {
         Group {
-            if entry.isStale && entry.aqi == 0 {
+            if isNoData {
                 noDataView
             } else {
                 contentView
@@ -38,17 +42,44 @@ struct AQIWidgetEntryView: View {
 
     // MARK: - No Data
 
+    @ViewBuilder
     private var noDataView: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "aqi.medium")
-                .font(.title)
-                .foregroundStyle(.white.opacity(0.5))
-            Text("Open Air Today")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.6))
-            Text("to load air quality data")
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.4))
+        switch family {
+        case .accessoryCircular:
+            // Show empty gauge with "–"
+            ZStack {
+                AccessoryWidgetBackground()
+                Image(systemName: "aqi.medium")
+                    .font(.title3)
+            }
+            .accessibilityLabel("Air quality data unavailable")
+        case .accessoryInline:
+            Text("AQI — No Data")
+                .accessibilityLabel("Air quality data unavailable")
+        case .accessoryRectangular:
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Air Quality")
+                    .font(.headline)
+                Text("Open app to load data")
+                    .font(.caption2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Air quality data unavailable. Open app to load data.")
+        default:
+            // System small/medium
+            VStack(spacing: 8) {
+                Image(systemName: "aqi.medium")
+                    .font(.title)
+                    .foregroundStyle(.white.opacity(0.5))
+                Text("Open Air Today")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.6))
+                Text("to load air quality data")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Air quality data unavailable. Open Air Today to load data.")
         }
     }
 
@@ -88,6 +119,8 @@ struct AQIWidgetEntryView: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label). \(entry.level.verdict). Station: \(entry.stationName)\(entry.isStale ? ". Data may be outdated." : "")")
     }
 
     // MARK: - System Medium
@@ -140,6 +173,8 @@ struct AQIWidgetEntryView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label). \(entry.level.verdict). Dominant pollutant: \(entry.dominantPollutant). Station: \(entry.stationName)\(entry.isStale ? ". Data may be outdated." : "")")
     }
 
     // MARK: - Accessory Circular
@@ -153,6 +188,7 @@ struct AQIWidgetEntryView: View {
         }
         .gaugeStyle(.accessoryCircularCapacity)
         .tint(entry.level.color)
+        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label)")
     }
 
     // MARK: - Accessory Rectangular
@@ -170,6 +206,8 @@ struct AQIWidgetEntryView: View {
                 .lineLimit(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label). \(entry.level.verdict)")
     }
 
     // MARK: - Accessory Inline
@@ -179,5 +217,6 @@ struct AQIWidgetEntryView: View {
             Image(systemName: "aqi.medium")
             Text("AQI \(entry.aqi) · \(entry.level.shortLabel)")
         }
+        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label)")
     }
 }
