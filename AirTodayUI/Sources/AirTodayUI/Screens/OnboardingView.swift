@@ -25,12 +25,18 @@ public struct OnboardingView: View {
             )
             .ignoresSafeArea()
 
-            TabView(selection: $currentPage) {
-                welcomePage.tag(0)
-                featuresPage.tag(1)
-                locationPage.tag(2)
+            VStack(spacing: 0) {
+                TabView(selection: $currentPage) {
+                    welcomePage.tag(0)
+                    featuresPage.tag(1)
+                    locationPage.tag(2)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+
+                // Step indicator with labels
+                stepIndicator
+                    .padding(.bottom, 16)
             }
-            .tabViewStyle(.page(indexDisplayMode: .always))
         }
     }
 
@@ -148,6 +154,42 @@ public struct OnboardingView: View {
             }
         }
         .padding(DS.spacingXXL)
+    }
+
+    // MARK: - Step Indicator
+
+    private let stepLabels = ["Welcome", "Features", "Location"]
+
+    private var stepIndicator: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3, id: \.self) { index in
+                let isSelected = currentPage == index
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(isSelected ? .white : .white.opacity(0.35))
+                        .frame(width: 7, height: 7)
+
+                    if isSelected {
+                        Text(stepLabels[index])
+                            .font(.system(.caption2, design: .rounded, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
+                    }
+                }
+                .padding(.horizontal, isSelected ? 10 : 6)
+                .padding(.vertical, 5)
+                .background(isSelected ? .white.opacity(0.15) : .clear, in: Capsule())
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        currentPage = index
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(.black.opacity(0.2), in: Capsule())
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentPage)
     }
 
     // MARK: - Helpers
