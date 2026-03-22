@@ -107,40 +107,36 @@ public struct LocationPager: View {
     // MARK: - Page Indicator
 
     private var pageIndicator: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 2) {
             ForEach(locationManager.locations) { location in
                 let isSelected = locationManager.selectedLocationID == location.id
                 let levelColor = locationManager.store(for: location).currentAQI?.level.color ?? .white
+                let name = location.isCurrentLocation ? "My Location" : location.name
+                    .components(separatedBy: ",").first ?? location.name
 
-                if isSelected {
-                    // Selected: pill with dot + location name
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 8, height: 8)
-                            .overlay {
-                                Circle()
-                                    .stroke(levelColor, lineWidth: 2)
-                                    .frame(width: 14, height: 14)
-                            }
-
-                        Text(location.isCurrentLocation ? "My Location" : location.name)
-                            .font(.system(.caption2, design: .rounded, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        locationManager.selectedLocationID = location.id
                     }
-                    .padding(.horizontal, 10)
+                } label: {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(isSelected ? levelColor : .white.opacity(0.4))
+                            .frame(width: 7, height: 7)
+
+                        if isSelected {
+                            Text(name)
+                                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
+                        }
+                    }
+                    .padding(.horizontal, isSelected ? 10 : 6)
                     .padding(.vertical, 5)
-                    .background(.black.opacity(0.35), in: Capsule())
-                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                } else {
-                    // Unselected: small dot
-                    Circle()
-                        .fill(.white.opacity(0.4))
-                        .frame(width: 7, height: 7)
-                        .padding(.horizontal, 2)
-                        .padding(.vertical, 5)
+                    .background(isSelected ? .black.opacity(0.35) : .clear, in: Capsule())
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 4)

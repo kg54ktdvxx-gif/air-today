@@ -76,7 +76,7 @@ public struct LocationPage: View {
                     .fill(.ultraThinMaterial)
                     .opacity(0.35)
 
-                // Gradient scrim — darker at top (status bar / hero text) and bottom
+                // Gradient scrim — darker at top for status bar / hero text readability
                 VStack(spacing: 0) {
                     LinearGradient(
                         colors: [.black.opacity(0.6), .black.opacity(0.2), .clear],
@@ -86,13 +86,6 @@ public struct LocationPage: View {
                     .frame(height: 350)
 
                     Spacer()
-
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.7), .black.opacity(0.9)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 300)
                 }
 
                 // Optional shader/particle overlay for extra atmosphere
@@ -110,7 +103,6 @@ public struct LocationPage: View {
             .compositingGroup()
         }
         .ignoresSafeArea()
-        .opacity(Double(max(0, 1 - scrollOffset / (UIScreen.main.bounds.height * 0.4))))
         .accessibilityHidden(true)
     }
 
