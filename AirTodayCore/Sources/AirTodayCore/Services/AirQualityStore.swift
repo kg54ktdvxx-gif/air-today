@@ -122,6 +122,9 @@ public final class AirQualityStore {
         // which all describe the user's own location — saved cities must not overwrite it.
         if isCurrentLocation {
             SharedDataStore.save(quality, queryCoordinate: queryCoordinate)
+            #if os(iOS)
+            WatchSync.shared.push()
+            #endif
         }
     }
 }

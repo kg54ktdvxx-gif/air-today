@@ -12,8 +12,13 @@ private struct StubService: AirQualityServiceProtocol {
     func fetchMapBounds(lat1: Double, lng1: Double, lat2: Double, lng2: Double) async throws -> [MapStation] { [] }
 }
 
-/// Shares the app-group cache, so these tests must not run in parallel.
-@Suite("AirQualityStore shared cache", .serialized)
+/// Every suite that reads or writes the app-group store nests in here, so they
+/// run one at a time instead of racing each other.
+@Suite("Shared store", .serialized)
+enum SharedStoreSuites {}
+
+extension SharedStoreSuites {
+@Suite("AirQualityStore shared cache")
 @MainActor
 struct AirQualityStoreTests {
     private static func quality(stationName: String) -> AirQuality {
@@ -78,4 +83,5 @@ struct AirQualityStoreTests {
 
         #expect(store.isStale == false)
     }
+}
 }

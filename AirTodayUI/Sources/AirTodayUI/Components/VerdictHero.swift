@@ -227,6 +227,8 @@ public struct VerdictHero: View {
     private static func freshnessText(measuredAt: Date, distance: Double?) -> String {
         let updated = updatedText(measuredAt)
         guard let distance else { return updated }
+        // Station coordinates are approximate; "0 m" or "40 m" claims false precision.
+        guard distance >= 100 else { return "\(updated) · under 100 m away" }
         // Short distances to the nearest 10 m ("660 m"), longer ones to a tenth ("2.4 km").
         let isShort = distance < 1_000
         let metres = isShort ? (distance / 10).rounded() * 10 : distance

@@ -1,3 +1,5 @@
+// Live Activities are iPhone-only; the Watch app builds this package without them.
+#if os(iOS)
 import ActivityKit
 import Foundation
 
@@ -35,3 +37,4 @@ extension AirQualityAttributes.ContentState {
         self.stationName = quality.station.name
     }
 }
+#endif

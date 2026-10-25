@@ -27,6 +27,7 @@ struct AirTodayApp: App {
 
         notificationRouter = NotificationRouter(locationManager: manager)
         UNUserNotificationCenter.current().delegate = notificationRouter
+        WatchSync.shared.activate()
 
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: Self.backgroundTaskID,
@@ -67,6 +68,8 @@ struct AirTodayApp: App {
             switch newPhase {
             case .background:
                 Self.scheduleBackgroundRefresh()
+                // Carries any Settings changes (scale, health, units) to the Watch.
+                WatchSync.shared.push()
             case .active:
                 // CLLocationManager only reports once per request; ask again so a
                 // device that moved while backgrounded gets its new location's air.
@@ -142,6 +145,7 @@ struct AirTodayApp: App {
 
             await AlertCoordinator.process(readings)
             WidgetCenter.shared.reloadAllTimelines()
+            WatchSync.shared.push()
             return !readings.isEmpty
         }
 

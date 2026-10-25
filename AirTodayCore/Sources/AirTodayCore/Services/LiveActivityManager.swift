@@ -1,3 +1,5 @@
+// Live Activities are iPhone-only; the Watch app builds this package without them.
+#if os(iOS)
 import Foundation
 import ActivityKit
 
@@ -99,3 +101,4 @@ public final class LiveActivityManager {
         await activity(withID: activityID)?.end(nil, dismissalPolicy: .immediate)
     }
 }
+#endif
