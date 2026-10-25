@@ -15,7 +15,10 @@
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
+				<!-- Preferences only this bundle reads -->
 				<string>CA92.1</string>
+				<!-- Readings, saved places, health profile and settings shared through the App Group -->
+				<string>1C8F.1</string>
 			</array>
 		</dict>
 	</array>
