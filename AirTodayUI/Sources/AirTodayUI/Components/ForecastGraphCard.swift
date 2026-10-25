@@ -10,15 +10,24 @@ public struct ForecastGraphCard: View {
     let currentAQI: Int
     /// Today's level colour, threaded quietly through the chart.
     let accent: Color
+    /// Values and threshold lines are drawn on this scale.
+    let scale: AQIScale
     @State private var selectedPollutant: Pollutant.Kind
 
     private let analyzer = ForecastAnalyzer()
 
-    public init(forecasts: [DailyForecast], dominantPollutant: Pollutant.Kind?, currentAQI: Int, accent: Color) {
+    public init(
+        forecasts: [DailyForecast],
+        dominantPollutant: Pollutant.Kind?,
+        currentAQI: Int,
+        accent: Color,
+        scale: AQIScale = .usEPA
+    ) {
         self.forecasts = forecasts
         self.dominantPollutant = dominantPollutant
         self.currentAQI = currentAQI
         self.accent = accent
+        self.scale = scale
         _selectedPollutant = State(initialValue: Self.defaultSelection(forecasts: forecasts, dominant: dominantPollutant))
     }
 
@@ -37,10 +46,23 @@ public struct ForecastGraphCard: View {
         return Pollutant.Kind.allCases.filter { kinds.contains($0) }
     }
 
+    /// The selected pollutant's forecast, converted to the chosen scale.
     private var chartPoints: [ForecastPoint] {
         analyzer.forecastPoints(from: forecasts)
             .filter { $0.pollutant == selectedPollutant }
             .sorted { $0.date < $1.date }
+            .map { point in
+                let convert = { (aqi: Int) in
+                    Int((scale.subIndex(for: point.pollutant, epaAQI: Double(aqi)) ?? Double(aqi)).rounded())
+                }
+                return ForecastPoint(
+                    pollutant: point.pollutant,
+                    date: point.date,
+                    avg: convert(point.avg),
+                    min: convert(point.min),
+                    max: convert(point.max)
+                )
+            }
     }
 
     private var improvement: String? {
@@ -154,6 +176,8 @@ public struct ForecastGraphCard: View {
                         endPoint: .bottom
                     )
                 )
+                // Each day's PointMark carries the spoken summary.
+                .accessibilityHidden(true)
 
                 LineMark(
                     x: .value("Day", point.date, unit: .day),
@@ -161,19 +185,22 @@ public struct ForecastGraphCard: View {
                 )
                 .foregroundStyle(accent.mix(with: .white, by: 0.6).opacity(DS.opacityPrimary))
                 .lineStyle(StrokeStyle(lineWidth: 2))
+                .accessibilityHidden(true)
 
                 PointMark(
                     x: .value("Day", point.date, unit: .day),
                     y: .value("AQI", point.avg)
                 )
-                .foregroundStyle(point.level.color)
+                .foregroundStyle(scale.band(forValue: Double(point.avg)).color)
                 .symbolSize(24)
+                .accessibilityLabel(Self.fullDayFormatter.string(from: point.date))
+                .accessibilityValue("\(scale.shortName) \(point.avg), \(scale.band(forValue: Double(point.avg)).longName). Range \(point.min) to \(point.max).")
             }
 
-            // Threshold lines
-            thresholdRule(at: 50, label: "Good", color: .green)
-            thresholdRule(at: 100, label: "Moderate", color: .yellow)
-            thresholdRule(at: 150, label: "Sensitive", color: .orange)
+            // Band boundaries for the chosen scale
+            ForEach(scale.chartThresholds, id: \.label) { threshold in
+                thresholdRule(at: threshold.value, label: threshold.label, color: threshold.color)
+            }
         }
         .chartYScale(domain: 0...chartYMax)
         .chartXAxis {
@@ -207,8 +234,9 @@ public struct ForecastGraphCard: View {
     }
 
     @ChartContentBuilder
-    private func thresholdRule(at value: Int, label: String, color: Color) -> some ChartContent {
+    private func thresholdRule(at value: Double, label: String, color: Color) -> some ChartContent {
         RuleMark(y: .value(label, value))
+            .accessibilityHidden(true)
             .foregroundStyle(color.opacity(DS.opacityTertiary))
             .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
             .annotation(position: .top, alignment: .leading, spacing: 2) {
@@ -219,10 +247,22 @@ public struct ForecastGraphCard: View {
             }
     }
 
-    private var chartYMax: Int {
-        let maxAQI = chartPoints.map(\.max).max() ?? 100
-        return max(maxAQI + 20, 160)
+    /// Room above the highest forecast, never lower than the scale's top threshold line.
+    private var chartYMax: Double {
+        let highest = Double(chartPoints.map(\.max).max() ?? 0)
+        switch scale {
+        case .usEPA: return max(highest + 20, scale.chartMinimumTop)
+        case .euCAQI: return max(highest + 10, scale.chartMinimumTop)
+        case .ukDAQI: return max(highest, scale.chartMinimumTop)
+        }
     }
+
+    private static let fullDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = .current
+        f.dateFormat = "EEEE"
+        return f
+    }()
 
     private static let shortDayFormatter: DateFormatter = {
         let f = DateFormatter()

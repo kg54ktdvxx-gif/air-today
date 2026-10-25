@@ -5,16 +5,19 @@ import AirTodayCore
 /// Uses a stitchable colorEffect shader from Atmosphere.metal in the app target.
 public struct ShaderOverlay: View {
     let params: AtmosphereParameters
+    /// False holds the haze still (Reduce Motion).
+    let isAnimated: Bool
     @State private var startDate = Date.now
 
-    public init(params: AtmosphereParameters) {
+    public init(params: AtmosphereParameters, isAnimated: Bool = true) {
         self.params = params
+        self.isAnimated = isAnimated
     }
 
     public var body: some View {
         if params.hazeDensity > 0.01 {
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-                let elapsed = Float(startDate.distance(to: timeline.date))
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isAnimated)) { timeline in
+                let elapsed = isAnimated ? Float(startDate.distance(to: timeline.date)) : 0
 
                 Rectangle()
                     .fill(.clear)

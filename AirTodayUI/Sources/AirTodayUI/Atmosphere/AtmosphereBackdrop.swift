@@ -23,6 +23,11 @@ struct AtmosphereBackdrop: View {
     /// True while the visible page is refreshing; particles brighten and breathe.
     let isStirred: Bool
     let parallaxEnabled: Bool
+    /// False under Reduce Motion or Reduce Visual Effects: no particles, no parallax,
+    /// no swipe lag, and the haze holds still.
+    let motionEnabled: Bool
+    /// False under Reduce Visual Effects: no haze shader or particles at all.
+    let effectsEnabled: Bool
     let tier: RenderQuality.QualityTier
 
     /// Share of the swipe distance the photos travel. Small, so it reads as lag, not motion.
@@ -38,6 +43,9 @@ struct AtmosphereBackdrop: View {
                 Color(red: 0.08, green: 0.08, blue: 0.1)
 
                 photos(in: geo.size)
+
+                skyTint
+                    .animation(DS.Motion.atmospheric, value: params.dayPhase)
 
                 // Soft blur + darken scrim for text readability
                 Rectangle()
@@ -55,12 +63,14 @@ struct AtmosphereBackdrop: View {
                     Spacer()
                 }
 
-                if tier.shadersEnabled {
-                    ShaderOverlay(params: params)
+                if effectsEnabled && tier.shadersEnabled {
+                    ShaderOverlay(params: params, isAnimated: motionEnabled)
                         .opacity(0.4)
 
-                    ParticleOverlay(config: params.particleConfig, tier: tier, isStirred: isStirred)
-                        .opacity(0.5)
+                    if motionEnabled {
+                        ParticleOverlay(config: params.particleConfig, tier: tier, isStirred: isStirred)
+                            .opacity(0.5)
+                    }
                 }
             }
             .compositingGroup()
@@ -71,10 +81,36 @@ struct AtmosphereBackdrop: View {
         .accessibilityHidden(true)
     }
 
+    // MARK: - Time of Day
+
+    /// Warm around the station's sunrise and sunset, cool and darker at night.
+    @ViewBuilder
+    private var skyTint: some View {
+        switch params.dayPhase {
+        case .day:
+            Color.clear
+        case .golden(let intensity):
+            LinearGradient(
+                colors: [
+                    Color(red: 1.0, green: 0.55, blue: 0.25).opacity(0.55 * intensity),
+                    Color(red: 1.0, green: 0.7, blue: 0.45).opacity(0.25 * intensity),
+                ],
+                startPoint: .bottom,
+                endPoint: .top
+            )
+            .blendMode(.softLight)
+        case .night:
+            Color(red: 0.05, green: 0.09, blue: 0.25)
+                .opacity(0.5)
+                .blendMode(.multiply)
+        }
+    }
+
     // MARK: - Photos
 
     @ViewBuilder
     private func photos(in size: CGSize) -> some View {
+        let swipeLag = motionEnabled ? Self.swipeLag : 0
         let maxIndex = CGFloat(max(layers.count - 1, 0))
         // Rubber-band overscroll past the first/last page shouldn't reveal empty space.
         let position = min(max(pagePosition, 0), maxIndex)
@@ -87,11 +123,11 @@ struct AtmosphereBackdrop: View {
             if index == lower || (index == lower + 1 && blend > 0) {
                 LevelPhoto(level: layer.level)
                     .frame(
-                        width: size.width * (1 + 2 * Self.swipeLag),
+                        width: size.width * (1 + 2 * swipeLag),
                         height: size.height * (1 + Self.parallaxHeadroom)
                     )
                     .position(
-                        x: size.width / 2 - (position - CGFloat(index)) * size.width * Self.swipeLag,
+                        x: size.width / 2 - (position - CGFloat(index)) * size.width * swipeLag,
                         y: size.height * (1 + Self.parallaxHeadroom) / 2 - verticalShift(layer.scrollOffset, height: size.height)
                     )
                     .opacity(index == lower ? 1 : blend)
@@ -100,7 +136,7 @@ struct AtmosphereBackdrop: View {
     }
 
     private func verticalShift(_ scrollOffset: CGFloat, height: CGFloat) -> CGFloat {
-        guard parallaxEnabled else { return 0 }
+        guard parallaxEnabled && motionEnabled else { return 0 }
         return min(max(0, scrollOffset) * Self.scrollParallax, height * Self.parallaxHeadroom)
     }
 }

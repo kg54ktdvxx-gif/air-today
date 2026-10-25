@@ -44,6 +44,9 @@ public enum DS {
     public static let cardHeaderTop: CGFloat = 12
     public static let cardHeaderBottom: CGFloat = 8
 
+    /// App-only preference: turns off haze, particles, parallax and swipe lag.
+    public static let reduceVisualEffectsKey = "reduce_visual_effects"
+
     // MARK: - Motion
 
     /// The only three curves the app animates with, so every transition feels

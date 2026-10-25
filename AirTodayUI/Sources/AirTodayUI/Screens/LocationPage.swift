@@ -14,6 +14,8 @@ public struct LocationPage: View {
     @State private var nearbyStations: [MapStation] = []
     @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
     private var temperatureUnit: TemperatureUnit = .celsius
+    @AppStorage(AQIScale.storageKey, store: .shared)
+    private var scale: AQIScale = .usEPA
     @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
     @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
     @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
@@ -135,9 +137,10 @@ public struct LocationPage: View {
             if !quality.forecast.isEmpty {
                 ForecastGraphCard(
                     forecasts: quality.forecast,
-                    dominantPollutant: quality.dominantPollutant,
+                    dominantPollutant: scale.displayReading(for: quality).reading.dominantPollutant,
                     currentAQI: quality.aqi,
-                    accent: quality.level.color
+                    accent: quality.level.color,
+                    scale: scale
                 )
             }
 
@@ -169,7 +172,8 @@ public struct LocationPage: View {
     // MARK: - Pollutant Card
 
     private func pollutantCard(quality: AirQuality) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let reading = scale.displayReading(for: quality).reading
+        return VStack(alignment: .leading, spacing: 0) {
             Text("Pollutants")
                 .font(.headline)
                 .foregroundStyle(.white)
@@ -179,13 +183,13 @@ public struct LocationPage: View {
 
             let sorted = sortedPollutants(quality: quality)
             ForEach(Array(sorted.enumerated()), id: \.element.id) { index, pollutant in
-                PollutantRow(pollutant: pollutant)
+                PollutantRow(pollutant: pollutant, scale: scale)
                     .padding(.horizontal, DS.spacingLG)
                     .overlay(alignment: .leading) {
                         // An overlay, so the marker doesn't push this row out of line.
-                        if pollutant.kind == quality.dominantPollutant {
+                        if pollutant.kind == reading.dominantPollutant {
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(quality.level.color)
+                                .fill(reading.band.color)
                                 .frame(width: 3)
                                 .padding(.vertical, 2)
                         }
@@ -197,18 +201,31 @@ public struct LocationPage: View {
                 }
             }
 
+            let excluded = quality.pollutants.filter { !scale.pollutants.contains($0.kind) }
+            if !excluded.isEmpty {
+                Text("\(ListFormatter.localizedString(byJoining: excluded.map(\.kind.displayName))) \(excluded.count == 1 ? "isn't" : "aren't") part of the \(scale.shortName).")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(DS.opacityTertiary))
+                    .padding(.horizontal, DS.spacingLG)
+                    .padding(.top, DS.spacingXS)
+            }
+
             Spacer().frame(height: DS.spacingSM)
         }
         .background { DS.cardBackground }
     }
 
+    /// The scale's pollutants, the one driving its index first, then worst to best.
     private func sortedPollutants(quality: AirQuality) -> [Pollutant] {
-        let dominant = quality.dominantPollutant
-        return quality.pollutants.sorted { a, b in
-            if a.kind == dominant { return true }
-            if b.kind == dominant { return false }
-            return a.aqi > b.aqi
-        }
+        let dominant = scale.displayReading(for: quality).reading.dominantPollutant
+        let subIndex = { (p: Pollutant) in scale.subIndex(for: p.kind, epaAQI: p.aqi) ?? p.aqi }
+        return quality.pollutants
+            .filter { scale.pollutants.contains($0.kind) }
+            .sorted { a, b in
+                if a.kind == dominant { return true }
+                if b.kind == dominant { return false }
+                return subIndex(a) > subIndex(b)
+            }
     }
 
     // MARK: - Conditions Card

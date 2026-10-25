@@ -14,6 +14,9 @@ public struct VerdictHero: View {
 
     @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
     private var temperatureUnit: TemperatureUnit = .celsius
+    @AppStorage(AQIScale.storageKey, store: .shared)
+    private var scale: AQIScale = .usEPA
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
     @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
     @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
@@ -79,6 +82,7 @@ public struct VerdictHero: View {
     @ViewBuilder
     private func loadedContent(_ quality: AirQuality) -> some View {
         let guidance = Self.guidanceService.guidance(for: quality, profile: healthProfile)
+        let (shownScale, reading) = scale.displayReading(for: quality)
 
         Spacer()
 
@@ -95,27 +99,27 @@ public struct VerdictHero: View {
                 .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
                 .shadow(color: .black.opacity(0.2), radius: 12, y: 6)
 
-            Text("\(quality.aqi)")
+            Text("\(reading.value)")
                 .font(.system(size: 96, weight: .thin, design: .rounded))
                 .monospacedDigit()
-                .contentTransition(.numericText(value: Double(quality.aqi)))
+                .contentTransition(.numericText(value: Double(reading.value)))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
                 .shadow(color: .black.opacity(0.3), radius: 16, y: 8)
                 .padding(.top, 4)
-                .animation(DS.Motion.standard, value: quality.aqi)
-                .background { halo(quality.level.color) }
+                .animation(DS.Motion.standard, value: reading.value)
+                .background { halo(reading.band.color) }
 
             // Without the standard and direction, "82" means nothing to most people.
-            Text("US EPA AQI · Scale 0–500 · Lower is better")
+            Text(shownScale.caption)
                 .font(.system(.caption, design: .rounded, weight: .medium))
                 .foregroundStyle(.white.opacity(0.65))
                 .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
                 .padding(.top, -6)
 
             HStack(spacing: 8) {
-                Text(quality.level.shortLabel)
-                if let dominant = quality.dominantPollutant {
+                Text(reading.band.name)
+                if let dominant = reading.dominantPollutant {
                     Text("·")
                     Text(dominant.displayName)
                 }
@@ -125,12 +129,11 @@ public struct VerdictHero: View {
             .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
             .padding(.top, 4)
 
-            // Conditions inline below AQI
-            conditionsRow(quality.weather)
-                .padding(.top, 48)
+            conditionsCapsule(quality)
+                .padding(.top, 40)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(guidance.verdict). US EPA Air Quality Index \(quality.aqi) out of 500, \(quality.level.label). Lower is better.")
+        .accessibilityLabel("\(guidance.verdict). \(shownScale.accessibilityName): \(reading.value), \(reading.band.longName). Lower is better.")
 
         Spacer()
 
@@ -151,7 +154,7 @@ public struct VerdictHero: View {
                 .font(.title2)
                 .foregroundStyle(.white.opacity(0.4))
                 .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
-                .symbolEffect(.pulse, isActive: !hasScrolled)
+                .symbolEffect(.pulse, isActive: !hasScrolled && !reduceMotion)
                 .opacity(hasScrolled ? 0 : 1)
                 .animation(DS.Motion.quick, value: hasScrolled)
                 .padding(.top, 4)
@@ -179,55 +182,44 @@ public struct VerdictHero: View {
             .accessibilityHidden(true)
     }
 
+    /// The station's local time and temperature in one quiet capsule.
     @ViewBuilder
-    private func conditionsRow(_ weather: Weather) -> some View {
-        let items = Self.conditionItems(
-            weather,
-            quality: quality,
-            temperatureUnit: temperatureUnit
-        )
+    private func conditionsCapsule(_ quality: AirQuality) -> some View {
+        let items = Self.conditionItems(quality, temperatureUnit: temperatureUnit)
         if !items.isEmpty {
-            HStack(spacing: 24) {
+            HStack(spacing: DS.spacingMD) {
                 ForEach(items, id: \.label) { item in
-                    VStack(spacing: 5) {
+                    HStack(spacing: 5) {
                         Image(systemName: item.icon)
-                            .font(.system(size: 20))
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(DS.opacitySecondary))
                         Text(item.value)
-                            .font(.system(.body, design: .rounded, weight: .semibold))
-                        Text(item.label)
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.5))
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(item.label): \(item.value)")
                 }
             }
-            .foregroundStyle(.white.opacity(0.75))
-            .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
+            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+            .foregroundStyle(.white.opacity(DS.opacityPrimary))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.black.opacity(0.28), in: Capsule())
+            .overlay(Capsule().strokeBorder(.white.opacity(0.12)))
         }
     }
 
     private static func conditionItems(
-        _ weather: Weather,
-        quality: AirQuality?,
+        _ quality: AirQuality,
         temperatureUnit: TemperatureUnit
     ) -> [(icon: String, value: String, label: String)] {
         var items: [(icon: String, value: String, label: String)] = []
 
-        // 1. Local city time
-        if let tzOffset = quality?.timeZoneOffset {
-            let localTime = SunCalculator.localTime(timeZoneOffset: tzOffset)
-            items.append(("clock.fill", localTime, "Local"))
+        if let tzOffset = quality.timeZoneOffset {
+            items.append(("clock.fill", SunCalculator.localTime(timeZoneOffset: tzOffset), "Local time"))
         }
-
-        // 2. Temperature
-        if let temp = weather.temperature {
-            items.append(("thermometer.medium", temperatureUnit.format(celsius: temp), "Temp"))
+        if let temp = quality.weather.temperature {
+            items.append(("thermometer.medium", temperatureUnit.format(celsius: temp), "Temperature"))
         }
-
-        // 3. Wind (if notable)
-        if let wind = weather.windSpeed, wind >= 3.0 {
-            items.append(("wind", String(format: "%.0f m/s", wind), "Wind"))
-        }
-
         return items
     }
 
@@ -235,8 +227,15 @@ public struct VerdictHero: View {
     private static func freshnessText(measuredAt: Date, distance: Double?) -> String {
         let updated = updatedText(measuredAt)
         guard let distance else { return updated }
-        let formatted = Measurement(value: distance, unit: UnitLength.meters).formatted(
-            .measurement(width: .abbreviated, usage: .road, numberFormatStyle: .number.precision(.fractionLength(0...1)))
+        // Short distances to the nearest 10 m ("660 m"), longer ones to a tenth ("2.4 km").
+        let isShort = distance < 1_000
+        let metres = isShort ? (distance / 10).rounded() * 10 : distance
+        let formatted = Measurement(value: metres, unit: UnitLength.meters).formatted(
+            .measurement(
+                width: .abbreviated,
+                usage: .road,
+                numberFormatStyle: .number.precision(.fractionLength(isShort ? 0...0 : 0...1))
+            )
         )
         return "\(updated) · \(formatted) away"
     }

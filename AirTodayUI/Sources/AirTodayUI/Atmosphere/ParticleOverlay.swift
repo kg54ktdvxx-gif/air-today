@@ -184,7 +184,7 @@ extension Particle {
         let angle = Double.random(in: -Double.pi / 3 ... Double.pi / 3)
         let speed = Double.random(in: config.minSpeed...max(config.minSpeed, config.maxSpeed))
         let velocity = CGPoint(
-            x: sin(angle) * speed,
+            x: sin(angle) * speed + config.drift,  // wind carries everything sideways
             y: -cos(angle) * speed // Negative = upward
         )
 

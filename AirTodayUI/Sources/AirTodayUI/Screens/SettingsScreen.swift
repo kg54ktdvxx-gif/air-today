@@ -10,6 +10,8 @@ public struct SettingsScreen: View {
     @State private var pendingDeleteOffsets: IndexSet?
     @State private var cacheCleared = false
     @AppStorage("parallax_enabled") private var parallaxEnabled = true
+    @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
+    @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
     @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
     private var temperatureUnit: TemperatureUnit = .celsius
     @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
@@ -70,7 +72,21 @@ public struct SettingsScreen: View {
                 Text("Tailors verdicts and activity advice. Stays on this device.")
             }
 
-            Section("Display") {
+            Section {
+                Picker(selection: $scale) {
+                    ForEach(AQIScale.allCases, id: \.self) { scale in
+                        Text("\(scale.shortName) (\(scale.rangeDescription))").tag(scale)
+                    }
+                } label: {
+                    Label("Scale", systemImage: "gauge.with.dots.needle.33percent")
+                }
+            } header: {
+                Text("Air Quality Scale")
+            } footer: {
+                Text("World Air Quality Index stations report on the US EPA scale. EU CAQI and UK DAQI numbers are worked out from those readings, so they're close estimates rather than official figures. Verdicts and activity advice always follow the US EPA levels.")
+            }
+
+            Section {
                 Picker(selection: $temperatureUnit) {
                     ForEach(TemperatureUnit.allCases, id: \.self) { unit in
                         Text(unit.displayName).tag(unit)
@@ -82,6 +98,15 @@ public struct SettingsScreen: View {
                 Toggle(isOn: $parallaxEnabled) {
                     Label("Parallax Effect", systemImage: "move.3d")
                 }
+                .disabled(reduceVisualEffects)
+
+                Toggle(isOn: $reduceVisualEffects) {
+                    Label("Reduce Visual Effects", systemImage: "sparkles")
+                }
+            } header: {
+                Text("Display")
+            } footer: {
+                Text("Reduce Visual Effects turns off the haze, drifting particles and parallax — easier on the battery and on the eyes. Reduce Motion in iOS Settings is respected automatically.")
             }
 
             Section("About") {

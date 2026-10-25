@@ -8,6 +8,7 @@ public struct OnboardingView: View {
     let onComplete: () -> Void
 
     @State private var currentStep = Step.welcome
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
     @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
@@ -95,7 +96,7 @@ public struct OnboardingView: View {
             Image(systemName: "aqi.medium")
                 .font(.system(size: 64))
                 .foregroundStyle(.white)
-                .symbolEffect(.breathe)
+                .symbolEffect(.breathe, isActive: !reduceMotion)
                 .accessibilityHidden(true)
 
             Text("Air Today")

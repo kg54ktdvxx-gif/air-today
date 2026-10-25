@@ -16,6 +16,25 @@ public struct ParticleConfig: Equatable, Sendable {
     public let colorGreen: Double
     public let colorBlue: Double
     public let wobbleAmount: Double
+    /// Sideways drift in points per second, from the wind.
+    public var drift: Double = 0
+
+    /// Wind pushes particles faster and sideways. Calm air (< 1 m/s) leaves them as they are.
+    public func scaled(forWindSpeed windSpeed: Double?) -> ParticleConfig {
+        let wind = min(max(windSpeed ?? 0, 0), 12)  // m/s; beyond a stiff breeze looks the same
+        guard wind >= 1 else { return self }
+        let factor = 1 + wind / 12 * 1.2
+        var config = ParticleConfig(
+            birthRate: birthRate, maxParticles: maxParticles,
+            minSpeed: minSpeed * factor, maxSpeed: maxSpeed * factor,
+            minSize: minSize, maxSize: maxSize,
+            minOpacity: minOpacity, maxOpacity: maxOpacity,
+            colorRed: colorRed, colorGreen: colorGreen, colorBlue: colorBlue,
+            wobbleAmount: wobbleAmount
+        )
+        config.drift = wind * 4
+        return config
+    }
 
     public static let disabled = ParticleConfig(
         birthRate: 0, maxParticles: 0,
@@ -50,10 +69,13 @@ public struct AtmosphereParameters: Equatable, Sendable {
     /// Warmth for colorGrade shader (0.0 = neutral, 1.0 = amber shift).
     public let warmth: Double
 
-    /// Particle system configuration.
+    /// Particle system configuration, already adjusted for wind.
     public let particleConfig: ParticleConfig
 
-    public init(from quality: AirQuality) {
+    /// Station-local time of day, for the sunrise/sunset/night tint.
+    public let dayPhase: DayPhase
+
+    public init(from quality: AirQuality, at date: Date = Date()) {
         let level = quality.level
         let normalizedAQI = Float(min(quality.aqi, 500)) / 500.0
 
@@ -63,7 +85,13 @@ public struct AtmosphereParameters: Equatable, Sendable {
         self.distortionAmplitude = quality.aqi > 150 ? Float(quality.aqi - 150) / 350.0 * 4.0 : 0.0
         self.saturation = Self.saturation(for: level)
         self.warmth = Self.warmth(for: level)
-        self.particleConfig = Self.particleConfig(for: level)
+        self.particleConfig = Self.particleConfig(for: level).scaled(forWindSpeed: quality.weather.windSpeed)
+        self.dayPhase = DayPhase.at(
+            date,
+            latitude: quality.station.coordinate.latitude,
+            longitude: quality.station.coordinate.longitude,
+            timeZoneOffset: quality.timeZoneOffset ?? TimeZone.current.secondsFromGMT(for: date)
+        )
     }
 
     /// Default clean-air atmosphere for loading state.
@@ -74,13 +102,14 @@ public struct AtmosphereParameters: Equatable, Sendable {
         distortionAmplitude: 0.0,
         saturation: 1.0,
         warmth: 0.0,
-        particleConfig: .disabled
+        particleConfig: .disabled,
+        dayPhase: .day
     )
 
     private init(
         meshColors: [Color], hazeDensity: Float, hazeColor: Color,
         distortionAmplitude: Float, saturation: Double, warmth: Double,
-        particleConfig: ParticleConfig
+        particleConfig: ParticleConfig, dayPhase: DayPhase
     ) {
         self.meshColors = meshColors
         self.hazeDensity = hazeDensity
@@ -89,6 +118,7 @@ public struct AtmosphereParameters: Equatable, Sendable {
         self.saturation = saturation
         self.warmth = warmth
         self.particleConfig = particleConfig
+        self.dayPhase = dayPhase
     }
 
     // MARK: - Palette Mapping

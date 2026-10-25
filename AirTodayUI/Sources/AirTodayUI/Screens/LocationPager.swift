@@ -14,6 +14,8 @@ public struct LocationPager: View {
     @State private var pagePosition: CGFloat = 0
     @State private var renderQuality = RenderQuality()
     @AppStorage("parallax_enabled") private var parallaxEnabled = true
+    @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(locationManager: LocationManager, locationService: LocationService) {
         self.locationManager = locationManager
@@ -134,9 +136,11 @@ public struct LocationPager: View {
                 )
             },
             pagePosition: pagePosition,
-            params: nearestStore?.currentAQI.map(AtmosphereParameters.init(from:)) ?? .placeholder,
+            params: nearestStore?.currentAQI.map { AtmosphereParameters(from: $0) } ?? .placeholder,
             isStirred: nearestStore?.state.isLoading ?? false,
             parallaxEnabled: parallaxEnabled,
+            motionEnabled: !reduceMotion && !reduceVisualEffects,
+            effectsEnabled: !reduceVisualEffects,
             tier: renderQuality.tier
         )
     }
