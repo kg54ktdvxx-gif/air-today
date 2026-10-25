@@ -71,11 +71,17 @@ struct AQIWidgetEntryView: View {
                 .foregroundStyle(.white.opacity(0.8))
                 .lineLimit(2)
 
-            if let place = placeText(quality) {
-                Text(place)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.5))
-                    .lineLimit(1)
+            HStack(spacing: 4) {
+                if let place = placeText(quality) {
+                    Text(place)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                if entry.usesModelData {
+                    OpenMeteoCredit()
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -136,6 +142,11 @@ struct AQIWidgetEntryView: View {
                         Image(systemName: "exclamationmark.circle")
                             .font(.caption2)
                             .foregroundStyle(.orange.opacity(0.7))
+                    }
+
+                    Spacer(minLength: 0)
+                    if entry.usesModelData {
+                        OpenMeteoCredit()
                     }
                 }
             }

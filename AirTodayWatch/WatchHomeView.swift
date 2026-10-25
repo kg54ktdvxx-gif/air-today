@@ -115,6 +115,14 @@ struct WatchHomeView: View {
                     Text(SourceDescription.text(for: quality, distance: nil, scale: scale))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                    // Credits the licences ask for wherever the data is shown.
+                    Text(quality.model == nil
+                        ? "Data: World Air Quality Index"
+                        : quality.station == nil
+                            ? "Data: Open-Meteo, CAMS"
+                            : "Data: World Air Quality Index, Open-Meteo, CAMS")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
                     if let error = model.errorMessage {
                         Text(error)
                             .font(.caption2)

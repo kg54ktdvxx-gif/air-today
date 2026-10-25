@@ -52,7 +52,7 @@ struct ActivityCheckWidget: Widget {
                 }
         }
         .configurationDisplayName("Activity Check")
-        .description("Is now a good time for running, cycling, a walk or the playground?")
+        .description("Is now a good time for running, cycling, a walk or the playground? Data from the World Air Quality Index and Open-Meteo.")
         .supportedFamilies([.systemSmall, .accessoryRectangular, .accessoryCircular])
     }
 }
@@ -100,10 +100,16 @@ struct ActivityCheckView: View {
 
             Spacer(minLength: 0)
 
-            Text(rec.bestWindow ?? rec.reason)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.75))
-                .lineLimit(2)
+            HStack(alignment: .lastTextBaseline, spacing: 4) {
+                Text(rec.bestWindow ?? rec.reason)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.75))
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+                if entry.base.usesModelData {
+                    OpenMeteoCredit()
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)

@@ -87,6 +87,26 @@ struct AQIWidgetProvider: AppIntentTimelineProvider {
     }
 }
 
+/// Open-Meteo's CC BY 4.0 licence asks for a credit wherever its data is shown.
+/// Shown on Home Screen widgets whose reading includes model data (estimate,
+/// forecast or weather); Lock Screen widgets are too small, so their gallery
+/// descriptions carry it instead.
+struct OpenMeteoCredit: View {
+    var body: some View {
+        Text("Open-Meteo")
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(.white.opacity(0.5))
+            .lineLimit(1)
+            .fixedSize()
+            .accessibilityLabel("Data from Open-Meteo")
+    }
+}
+
+extension AQIWidgetEntry {
+    /// Whether anything shown came from Open-Meteo.
+    var usesModelData: Bool { quality?.model != nil }
+}
+
 /// Small circular refresh control for the Home Screen widgets.
 struct WidgetRefreshButton: View {
     var body: some View {

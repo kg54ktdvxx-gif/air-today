@@ -14,7 +14,7 @@ struct BestWindowWidget: Widget {
                 }
         }
         .configurationDisplayName("Best Window")
-        .description("When the air should be cleanest, from the hourly forecast.")
+        .description("When the air should be cleanest, from Open-Meteo's hourly forecast.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }
@@ -45,9 +45,9 @@ struct BestWindowView: View {
         .widgetURL(URL(string: "airtoday://open"))
     }
 
-    /// "Best time outside today"
+    /// "Best time today" — short enough for the small and Lock Screen sizes.
     private func title(_ window: BestWindow) -> String {
-        "Best time outside \(window.dayName(now: entry.date))"
+        "Best time \(window.dayName(now: entry.date))"
     }
 
     /// The window's level in the chosen scale's words.
@@ -56,7 +56,7 @@ struct BestWindowView: View {
     }
 
     private func spoken(_ window: BestWindow) -> String {
-        "\(title(window)): \(window.headline). \(window.detail) Expected \(levelName(window))."
+        "Best time outside \(window.dayName(now: entry.date)): \(window.headline). \(window.detail) Expected \(levelName(window))."
     }
 
     /// There's a reading but no hourly forecast to plan from.
@@ -75,16 +75,15 @@ struct BestWindowView: View {
 
     private func small(_ window: BestWindow) -> some View {
         VStack(alignment: .leading, spacing: 6) {
+            // Title beside the refresh button, so the detail and credit have room.
             HStack {
-                Image(systemName: "clock.badge.checkmark")
-                    .font(.title3)
-                    .foregroundStyle(.white)
-                Spacer()
+                Text(title(window))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .lineLimit(1)
+                Spacer(minLength: 4)
                 WidgetRefreshButton()
             }
-            Text(title(window))
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.white.opacity(0.8))
             Text(window.headline)
                 .font(.system(.title3, design: .rounded, weight: .bold))
                 .foregroundStyle(.white)
@@ -93,7 +92,9 @@ struct BestWindowView: View {
             Text(window.detail)
                 .font(.caption2)
                 .foregroundStyle(.white.opacity(0.75))
-                .lineLimit(3)
+                .lineLimit(2)
+            // The window always comes from Open-Meteo's forecast.
+            OpenMeteoCredit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -124,6 +125,7 @@ struct BestWindowView: View {
                 Text(levelName(window))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(window.level.color)
+                OpenMeteoCredit()
             }
         }
         .accessibilityElement(children: .combine)

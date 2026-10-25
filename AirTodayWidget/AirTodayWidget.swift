@@ -22,7 +22,8 @@ struct AQIWidget: Widget {
                 }
         }
         .configurationDisplayName("Air Quality")
-        .description("Today's verdict and air quality where you are.")
+        // A plain literal: WidgetKit crashes on interpolated descriptions.
+        .description("Today's verdict and air quality where you are. Data from the World Air Quality Index and Open-Meteo.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryInline, .accessoryRectangular])
     }
 }

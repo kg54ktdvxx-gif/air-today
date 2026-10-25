@@ -59,7 +59,7 @@ struct AirQualityComplication: Widget {
                 .containerBackground(.clear, for: .widget)
         }
         .configurationDisplayName("Air Quality")
-        .description("Today's air quality where you are.")
+        .description("Today's air quality where you are. Data from the World Air Quality Index and Open-Meteo.")
         .supportedFamilies([.accessoryCircular, .accessoryCorner, .accessoryInline, .accessoryRectangular])
     }
 }
