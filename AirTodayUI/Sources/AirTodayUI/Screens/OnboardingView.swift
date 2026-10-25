@@ -1,43 +1,89 @@
 import SwiftUI
 import AirTodayCore
 
-/// First-launch onboarding — explains app purpose + requests location.
+/// First-launch onboarding — what the app does, how it looks when the air is bad,
+/// the optional health profile, then location.
 public struct OnboardingView: View {
     let locationService: LocationService
     let onComplete: () -> Void
 
-    @State private var currentPage = 0
+    @State private var currentStep = Step.welcome
+
+    @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
+    @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
+    @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
 
     public init(locationService: LocationService, onComplete: @escaping () -> Void) {
         self.locationService = locationService
         self.onComplete = onComplete
     }
 
+    enum Step: Int, CaseIterable {
+        case welcome, atmosphere, you, location
+
+        var label: String {
+            switch self {
+            case .welcome: "Welcome"
+            case .atmosphere: "Atmosphere"
+            case .you: "You"
+            case .location: "Location"
+            }
+        }
+
+        /// The atmosphere step shows what a hazardous day looks like.
+        var backgroundLevel: AQILevel {
+            self == .atmosphere ? .hazardous : .good
+        }
+    }
+
     public var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.05, green: 0.20, blue: 0.30),
-                    Color(red: 0.02, green: 0.08, blue: 0.18),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            background
 
             VStack(spacing: 0) {
-                TabView(selection: $currentPage) {
-                    welcomePage.tag(0)
-                    featuresPage.tag(1)
-                    locationPage.tag(2)
+                TabView(selection: $currentStep) {
+                    welcomePage.tag(Step.welcome)
+                    atmospherePage.tag(Step.atmosphere)
+                    youPage.tag(Step.you)
+                    locationPage.tag(Step.location)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .shadow(color: .black.opacity(0.45), radius: 6, y: 2)
 
-                // Step indicator with labels
                 stepIndicator
                     .padding(.bottom, 16)
             }
         }
+        .preferredColorScheme(.dark)
+    }
+
+    // MARK: - Background
+
+    private var background: some View {
+        GeometryReader { geo in
+            ZStack {
+                Color.black
+
+                ForEach(Step.allCases, id: \.self) { step in
+                    Image(step.backgroundLevel.backgroundImageName)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                        .opacity(step.backgroundLevel == currentStep.backgroundLevel ? 1 : 0)
+                }
+
+                // Readability: darker at top and bottom where text and buttons sit.
+                LinearGradient(
+                    colors: [.black.opacity(0.55), .black.opacity(0.15), .black.opacity(0.6)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .animation(DS.Motion.atmospheric, value: currentStep.backgroundLevel)
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
     }
 
     // MARK: - Welcome
@@ -48,70 +94,96 @@ public struct OnboardingView: View {
 
             Image(systemName: "aqi.medium")
                 .font(.system(size: 64))
-                .foregroundStyle(.green)
+                .foregroundStyle(.white)
                 .symbolEffect(.breathe)
+                .accessibilityHidden(true)
 
             Text("Air Today")
-                .font(.largeTitle.weight(.bold))
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .foregroundStyle(.white)
 
             Text("Know when it's safe to be outside")
                 .font(.title3)
-                .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                .foregroundStyle(.white.opacity(DS.opacityPrimary))
                 .multilineTextAlignment(.center)
 
             Spacer()
 
-            nextButton("Get Started") {
-                withAnimation { currentPage = 1 }
-            }
+            nextButton("Get Started") { advance(to: .atmosphere) }
         }
         .padding(DS.spacingXXL)
     }
 
-    // MARK: - Features
+    // MARK: - Atmosphere
 
-    private var featuresPage: some View {
-        VStack(spacing: DS.spacingXXL) {
+    private var atmospherePage: some View {
+        VStack(spacing: DS.spacingSM) {
             Spacer()
 
-            VStack(spacing: DS.spacingXL + 4) {
-                featureRow(
-                    icon: "sun.max.fill",
-                    color: .green,
-                    title: "Health Verdicts",
-                    description: "Clear guidance on outdoor safety, not just numbers"
-                )
-
-                featureRow(
-                    icon: "figure.run",
-                    color: .blue,
-                    title: "Activity Guidance",
-                    description: "Per-activity recommendations for running, cycling, and more"
-                )
-
-                featureRow(
-                    icon: "chart.xyaxis.line",
-                    color: .orange,
-                    title: "Forecast",
-                    description: "9-day air quality forecast with improvement predictions"
-                )
-
-                featureRow(
-                    icon: "map.fill",
-                    color: .purple,
-                    title: "Nearby Stations",
-                    description: "See air quality at monitoring stations around you"
-                )
-            }
+            Text("Stay indoors")
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+            Text(AQILevel.hazardous.label)
+                .font(.system(.title3, design: .rounded, weight: .semibold))
+                .foregroundStyle(.white.opacity(DS.opacityPrimary))
 
             Spacer()
 
-            nextButton("Continue") {
-                withAnimation { currentPage = 2 }
-            }
+            Text("The screen tells you the answer\nbefore the numbers do.")
+                .font(.title3)
+                .foregroundStyle(.white.opacity(DS.opacityPrimary))
+                .multilineTextAlignment(.center)
+                .padding(.bottom, DS.spacingXXL)
+
+            nextButton("Continue") { advance(to: .you) }
         }
         .padding(DS.spacingXXL)
+        .accessibilityElement(children: .contain)
+    }
+
+    // MARK: - You
+
+    private var youPage: some View {
+        VStack(spacing: DS.spacingXL) {
+            Spacer()
+
+            VStack(spacing: DS.spacingSM) {
+                Text("Tailor your guidance")
+                    .font(.system(.title, design: .rounded, weight: .bold))
+                    .foregroundStyle(.white)
+                Text("Optional — tap any that apply. We'll personalize your activity recommendations. Nothing leaves your device.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(DS.opacityPrimary))
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: DS.spacingMD) {
+                HealthTile(
+                    icon: "lungs.fill",
+                    title: "Asthma or respiratory condition",
+                    detail: "Earlier warnings and gentler activity advice",
+                    isOn: $hasRespiratoryCondition
+                )
+                HealthTile(
+                    icon: "sun.haze.fill",
+                    title: "Sensitive to ozone",
+                    detail: "Flags ozone afternoons and better times to go out",
+                    isOn: $isOzoneSensitive
+                )
+                HealthTile(
+                    icon: "figure.and.child.holdinghands",
+                    title: "Children in household",
+                    detail: "Stricter playground and outdoor play advice",
+                    isOn: $hasChildren
+                )
+            }
+
+            Spacer()
+
+            nextButton("Continue") { advance(to: .location) }
+        }
+        .padding(.horizontal, DS.spacingXL)
+        .padding(.vertical, DS.spacingXXL)
     }
 
     // MARK: - Location Permission
@@ -122,20 +194,17 @@ public struct OnboardingView: View {
 
             Image(systemName: "location.circle.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.blue)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.black.opacity(0.8), .white)
+                .accessibilityHidden(true)
 
             Text("Enable Location")
-                .font(.title.weight(.bold))
+                .font(.system(.title, design: .rounded, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Air Today needs your location to find the nearest monitoring station and show accurate local air quality data.")
+            Text("Air Today uses your location to find the nearest monitoring station. Your coordinates are only sent to the World Air Quality Index to fetch readings — never stored on a server or shared.")
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                .multilineTextAlignment(.center)
-
-            Text("Your location is only sent to the WAQI API — we never store or track it.")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(DS.opacityTertiary))
+                .foregroundStyle(.white.opacity(DS.opacityPrimary))
                 .multilineTextAlignment(.center)
 
             Spacer()
@@ -150,7 +219,7 @@ public struct OnboardingView: View {
                     onComplete()
                 }
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                .foregroundStyle(.white.opacity(DS.opacityPrimary))
             }
         }
         .padding(DS.spacingXXL)
@@ -158,19 +227,17 @@ public struct OnboardingView: View {
 
     // MARK: - Step Indicator
 
-    private let stepLabels = ["Welcome", "Features", "Location"]
-
     private var stepIndicator: some View {
         HStack(spacing: 4) {
-            ForEach(0..<3, id: \.self) { index in
-                let isSelected = currentPage == index
+            ForEach(Step.allCases, id: \.self) { step in
+                let isSelected = currentStep == step
                 HStack(spacing: 4) {
                     Circle()
                         .fill(isSelected ? .white : .white.opacity(0.35))
                         .frame(width: 7, height: 7)
 
                     if isSelected {
-                        Text(stepLabels[index])
+                        Text(step.label)
                             .font(.system(.caption2, design: .rounded, weight: .semibold))
                             .foregroundStyle(.white)
                             .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
@@ -179,39 +246,23 @@ public struct OnboardingView: View {
                 .padding(.horizontal, isSelected ? 10 : 6)
                 .padding(.vertical, 5)
                 .background(isSelected ? .white.opacity(0.15) : .clear, in: Capsule())
-                .onTapGesture {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        currentPage = index
-                    }
-                }
+                .contentShape(Capsule())
+                .onTapGesture { advance(to: step) }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(step.label), step \(step.rawValue + 1) of \(Step.allCases.count)")
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .background(.black.opacity(0.2), in: Capsule())
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentPage)
+        .background(.black.opacity(0.25), in: Capsule())
+        .animation(DS.Motion.quick, value: currentStep)
     }
 
     // MARK: - Helpers
 
-    private func featureRow(icon: String, color: Color, title: String, description: String) -> some View {
-        HStack(spacing: DS.spacingLG) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(color)
-                .frame(width: DS.iconLG)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(DS.opacitySecondary))
-            }
-
-            Spacer()
-        }
+    private func advance(to step: Step) {
+        withAnimation(DS.Motion.standard) { currentStep = step }
     }
 
     private func nextButton(_ title: String, action: @escaping () -> Void) -> some View {

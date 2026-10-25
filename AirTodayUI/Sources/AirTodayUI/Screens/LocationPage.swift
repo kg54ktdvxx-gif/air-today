@@ -1,8 +1,7 @@
 import SwiftUI
 import AirTodayCore
 
-/// A single location's page — atmosphere background + vertical scroll content.
-/// Extracted from the former HomeScreen.swift.
+/// A single location's page — hero and detail cards over the shared atmosphere.
 public struct LocationPage: View {
     let store: AirQualityStore
     let location: SavedLocation
@@ -10,13 +9,22 @@ public struct LocationPage: View {
     let userCoordinate: Coordinate?
     let onRetry: () async -> Void
 
-    @State private var renderQuality = RenderQuality()
     @State private var scrollOffset: CGFloat = 0
     @State private var hasScrolled = false
     @State private var nearbyStations: [MapStation] = []
-    @AppStorage("parallax_enabled") private var parallaxEnabled = true
     @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
     private var temperatureUnit: TemperatureUnit = .celsius
+    @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
+    @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
+    @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
+
+    private var healthProfile: HealthProfile {
+        HealthProfile(
+            hasRespiratoryCondition: hasRespiratoryCondition,
+            isOzoneSensitive: isOzoneSensitive,
+            hasChildren: hasChildren
+        )
+    }
 
     private static let guidanceService = ActivityGuidanceService()
 
@@ -32,11 +40,6 @@ public struct LocationPage: View {
         self.onRetry = onRetry
     }
 
-    private var atmosphereParams: AtmosphereParameters {
-        guard let quality = store.currentAQI else { return .placeholder }
-        return AtmosphereParameters(from: quality)
-    }
-
     public var body: some View {
         pageContent
             .task(id: store.currentAQI?.station.id) {
@@ -45,74 +48,15 @@ public struct LocationPage: View {
             .sensoryFeedback(.impact(flexibility: .solid), trigger: store.currentAQI?.level) { old, new in
                 old != nil && old != new
             }
-            .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
-                renderQuality.update()
-            }
     }
 
+    /// The atmosphere behind this content is drawn once by `LocationPager`
+    /// (`AtmosphereBackdrop`), so it can carry across swipes between pages.
     private var pageContent: some View {
         ZStack {
-            // Dark base so scrolled content never reveals black void
-            Color(red: 0.08, green: 0.08, blue: 0.1)
-                .ignoresSafeArea()
-            atmosphereBackground
             heroScrim
             scrollContent
         }
-    }
-
-    // MARK: - Atmosphere Background
-
-    private var currentLevel: AQILevel {
-        store.currentAQI?.level ?? .good
-    }
-
-    private var atmosphereBackground: some View {
-        GeometryReader { geo in
-            ZStack {
-                // Photo background — the primary visual
-                let parallaxShift = parallaxEnabled ? scrollOffset * 0.8 : 0
-                Image(currentLevel.backgroundImageName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: geo.size.width, height: geo.size.height + 400)
-                    .offset(y: -parallaxShift)
-                    .clipped()
-                    .animation(.easeInOut(duration: 1.0), value: currentLevel)
-
-                // Soft blur + darken scrim for text readability
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.35)
-
-                // Gradient scrim — darker at top for status bar / hero text readability
-                VStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [.black.opacity(0.6), .black.opacity(0.2), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 350)
-
-                    Spacer()
-                }
-
-                // Optional shader/particle overlay for extra atmosphere
-                if renderQuality.tier.shadersEnabled {
-                    ShaderOverlay(params: atmosphereParams)
-                        .opacity(0.4)
-
-                    ParticleOverlay(
-                        config: atmosphereParams.particleConfig,
-                        tier: renderQuality.tier
-                    )
-                    .opacity(0.5)
-                }
-            }
-            .compositingGroup()
-        }
-        .ignoresSafeArea()
-        .accessibilityHidden(true)
     }
 
     // MARK: - Hero Scrim
@@ -136,7 +80,7 @@ public struct LocationPage: View {
         ScrollView(.vertical) {
             VStack(spacing: 0) {
                 heroSection
-                    .frame(minHeight: UIScreen.main.bounds.height)
+                    .containerRelativeFrame(.vertical)
 
                 if let quality = store.currentAQI {
                     detailCards(quality: quality)
@@ -154,7 +98,7 @@ public struct LocationPage: View {
             if newValue > 20 { hasScrolled = true }
             else if newValue < 5 { hasScrolled = false }
         }
-        .preference(key: ScrollOffsetKey.self, value: scrollOffset)
+        .preference(key: PageScrollOffsetsKey.self, value: [location.id: scrollOffset])
     }
 
     // MARK: - Hero
@@ -179,7 +123,7 @@ public struct LocationPage: View {
     // MARK: - Detail Cards
 
     private func detailCards(quality: AirQuality) -> some View {
-        let guidance = Self.guidanceService.guidance(for: quality)
+        let guidance = Self.guidanceService.guidance(for: quality, profile: healthProfile)
 
         return VStack(spacing: DS.spacingXL) {
             ActivityGuidanceCard(guidance: guidance, level: quality.level)
@@ -191,8 +135,9 @@ public struct LocationPage: View {
             if !quality.forecast.isEmpty {
                 ForecastGraphCard(
                     forecasts: quality.forecast,
-                    dominantPollutant: quality.dominantPollutant ?? .pm25,
-                    currentAQI: quality.aqi
+                    dominantPollutant: quality.dominantPollutant,
+                    currentAQI: quality.aqi,
+                    accent: quality.level.color
                 )
             }
 
@@ -234,17 +179,17 @@ public struct LocationPage: View {
 
             let sorted = sortedPollutants(quality: quality)
             ForEach(Array(sorted.enumerated()), id: \.element.id) { index, pollutant in
-                HStack(spacing: 0) {
-                    if pollutant.kind == quality.dominantPollutant {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(quality.level.color)
-                            .frame(width: 3)
-                            .padding(.vertical, 2)
+                PollutantRow(pollutant: pollutant)
+                    .padding(.horizontal, DS.spacingLG)
+                    .overlay(alignment: .leading) {
+                        // An overlay, so the marker doesn't push this row out of line.
+                        if pollutant.kind == quality.dominantPollutant {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(quality.level.color)
+                                .frame(width: 3)
+                                .padding(.vertical, 2)
+                        }
                     }
-
-                    PollutantRow(pollutant: pollutant)
-                        .padding(.horizontal, DS.spacingLG)
-                }
 
                 if index < sorted.count - 1 {
                     DS.divider

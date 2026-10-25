@@ -12,6 +12,9 @@ public struct SettingsScreen: View {
     @AppStorage("parallax_enabled") private var parallaxEnabled = true
     @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
     private var temperatureUnit: TemperatureUnit = .celsius
+    @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
+    @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
+    @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
 
     public init(locationManager: LocationManager) {
         self.locationManager = locationManager
@@ -49,6 +52,22 @@ public struct SettingsScreen: View {
                         Label("Add Location", systemImage: "plus")
                     }
                 }
+            }
+
+            Section {
+                Toggle(isOn: $hasRespiratoryCondition) {
+                    Label("Asthma or respiratory condition", systemImage: "lungs.fill")
+                }
+                Toggle(isOn: $isOzoneSensitive) {
+                    Label("Sensitive to ozone", systemImage: "sun.haze.fill")
+                }
+                Toggle(isOn: $hasChildren) {
+                    Label("Children in household", systemImage: "figure.and.child.holdinghands")
+                }
+            } header: {
+                Text("Your Health")
+            } footer: {
+                Text("Tailors verdicts and activity advice. Stays on this device.")
             }
 
             Section("Display") {
@@ -115,7 +134,7 @@ public struct SettingsScreen: View {
         .confirmationDialog("Clear Cache", isPresented: $showingClearConfirmation) {
             Button("Clear Cache", role: .destructive) {
                 clearCache()
-                withAnimation { cacheCleared = true }
+                withAnimation(DS.Motion.quick) { cacheCleared = true }
             }
         } message: {
             Text("This will remove cached air quality data. Fresh data will be fetched on next refresh.")

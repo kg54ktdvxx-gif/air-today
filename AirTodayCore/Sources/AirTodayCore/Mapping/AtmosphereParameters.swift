@@ -30,7 +30,7 @@ public struct ParticleConfig: Equatable, Sendable {
 // MARK: - Atmosphere Parameters
 
 /// Pure mapping from AQI data to visual atmosphere parameters.
-/// Consumed by MeshGradient, Metal shaders, particle system, and spring animations.
+/// Consumed by MeshGradient, Metal shaders and the particle system.
 public struct AtmosphereParameters: Equatable, Sendable {
     /// 9 colors for a 3×3 MeshGradient.
     public let meshColors: [Color]
@@ -50,15 +50,6 @@ public struct AtmosphereParameters: Equatable, Sendable {
     /// Warmth for colorGrade shader (0.0 = neutral, 1.0 = amber shift).
     public let warmth: Double
 
-    /// Spring animation response time (lower = bouncier).
-    public let springResponse: Double
-
-    /// Spring damping fraction (lower = more bounce, 1.0 = overdamped).
-    public let springDamping: Double
-
-    /// Spring extra bounce (0.0-0.3 for clean air, 0.0 for polluted).
-    public let springBounce: Double
-
     /// Particle system configuration.
     public let particleConfig: ParticleConfig
 
@@ -72,9 +63,6 @@ public struct AtmosphereParameters: Equatable, Sendable {
         self.distortionAmplitude = quality.aqi > 150 ? Float(quality.aqi - 150) / 350.0 * 4.0 : 0.0
         self.saturation = Self.saturation(for: level)
         self.warmth = Self.warmth(for: level)
-        self.springResponse = Self.springResponse(for: level)
-        self.springDamping = Self.springDamping(for: level)
-        self.springBounce = Self.springBounce(for: level)
         self.particleConfig = Self.particleConfig(for: level)
     }
 
@@ -86,16 +74,12 @@ public struct AtmosphereParameters: Equatable, Sendable {
         distortionAmplitude: 0.0,
         saturation: 1.0,
         warmth: 0.0,
-        springResponse: 0.35,
-        springDamping: 0.6,
-        springBounce: 0.2,
         particleConfig: .disabled
     )
 
     private init(
         meshColors: [Color], hazeDensity: Float, hazeColor: Color,
         distortionAmplitude: Float, saturation: Double, warmth: Double,
-        springResponse: Double, springDamping: Double, springBounce: Double,
         particleConfig: ParticleConfig
     ) {
         self.meshColors = meshColors
@@ -104,9 +88,6 @@ public struct AtmosphereParameters: Equatable, Sendable {
         self.distortionAmplitude = distortionAmplitude
         self.saturation = saturation
         self.warmth = warmth
-        self.springResponse = springResponse
-        self.springDamping = springDamping
-        self.springBounce = springBounce
         self.particleConfig = particleConfig
     }
 
@@ -228,41 +209,6 @@ public struct AtmosphereParameters: Equatable, Sendable {
         case .unhealthy: 0.55
         case .veryUnhealthy: 0.6
         case .hazardous: 0.7
-        }
-    }
-
-    // MARK: - Spring Physics
-
-    private static func springResponse(for level: AQILevel) -> Double {
-        switch level {
-        case .good: 0.35
-        case .moderate: 0.45
-        case .sensitive: 0.6
-        case .unhealthy: 0.8
-        case .veryUnhealthy: 1.2
-        case .hazardous: 1.5
-        }
-    }
-
-    private static func springDamping(for level: AQILevel) -> Double {
-        switch level {
-        case .good: 0.6
-        case .moderate: 0.7
-        case .sensitive: 0.8
-        case .unhealthy: 0.88
-        case .veryUnhealthy: 0.95
-        case .hazardous: 1.0
-        }
-    }
-
-    private static func springBounce(for level: AQILevel) -> Double {
-        switch level {
-        case .good: 0.2
-        case .moderate: 0.1
-        case .sensitive: 0.05
-        case .unhealthy: 0.0
-        case .veryUnhealthy: 0.0
-        case .hazardous: 0.0
         }
     }
 

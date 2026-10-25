@@ -14,6 +14,17 @@ public struct VerdictHero: View {
 
     @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
     private var temperatureUnit: TemperatureUnit = .celsius
+    @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
+    @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
+    @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
+
+    private var healthProfile: HealthProfile {
+        HealthProfile(
+            hasRespiratoryCondition: hasRespiratoryCondition,
+            isOzoneSensitive: isOzoneSensitive,
+            hasChildren: hasChildren
+        )
+    }
 
     private static let guidanceService = ActivityGuidanceService()
 
@@ -67,8 +78,7 @@ public struct VerdictHero: View {
 
     @ViewBuilder
     private func loadedContent(_ quality: AirQuality) -> some View {
-        let params = AtmosphereParameters(from: quality)
-        let guidance = Self.guidanceService.guidance(for: quality)
+        let guidance = Self.guidanceService.guidance(for: quality, profile: healthProfile)
 
         Spacer()
 
@@ -93,10 +103,8 @@ public struct VerdictHero: View {
                 .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
                 .shadow(color: .black.opacity(0.3), radius: 16, y: 8)
                 .padding(.top, 4)
-                .animation(
-                    .spring(response: params.springResponse, dampingFraction: params.springDamping),
-                    value: quality.aqi
-                )
+                .animation(DS.Motion.standard, value: quality.aqi)
+                .background { halo(quality.level.color) }
 
             // Without the standard and direction, "82" means nothing to most people.
             Text("US EPA AQI · Scale 0–500 · Lower is better")
@@ -145,11 +153,30 @@ public struct VerdictHero: View {
                 .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
                 .symbolEffect(.pulse, isActive: !hasScrolled)
                 .opacity(hasScrolled ? 0 : 1)
-                .animation(.easeOut(duration: 0.5), value: hasScrolled)
+                .animation(DS.Motion.quick, value: hasScrolled)
                 .padding(.top, 4)
                 .accessibilityHidden(true)
         }
         .padding(.bottom, 40)
+    }
+
+    /// A soft glow of the level colour behind the number, so the eye lands on the
+    /// verdict and feels the colour at the same moment.
+    private func halo(_ color: Color) -> some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [color.opacity(0.5), color.opacity(0.15), color.opacity(0)],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 130
+                )
+            )
+            .frame(width: 260, height: 260)
+            .blur(radius: 16)
+            .animation(DS.Motion.atmospheric, value: color)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     @ViewBuilder

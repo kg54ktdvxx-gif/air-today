@@ -37,7 +37,7 @@ struct AirTodayApp: App {
                     LocationPager(locationManager: locationManager, locationService: locationService)
                 } else {
                     OnboardingView(locationService: locationService) {
-                        withAnimation {
+                        withAnimation(DS.Motion.standard) {
                             hasCompletedOnboarding = true
                         }
                     }

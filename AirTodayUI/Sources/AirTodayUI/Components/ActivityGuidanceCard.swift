@@ -15,7 +15,7 @@ public struct ActivityGuidanceCard: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                withAnimation(DS.Motion.standard) {
                     isExpanded.toggle()
                 }
             } label: {
@@ -32,6 +32,20 @@ public struct ActivityGuidanceCard: View {
             }
         }
         .background { DS.cardBackground }
+        .overlay {
+            // The level colour runs along the card's leading edge and fades out.
+            RoundedRectangle(cornerRadius: DS.cornerRadius)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [level.color.opacity(0.75), level.color.opacity(0)],
+                        startPoint: .leading,
+                        endPoint: UnitPoint(x: 0.35, y: 0.5)
+                    ),
+                    lineWidth: 1.5
+                )
+                .animation(DS.Motion.atmospheric, value: level)
+                .allowsHitTesting(false)
+        }
         .accessibilityElement(children: .contain)
     }
 

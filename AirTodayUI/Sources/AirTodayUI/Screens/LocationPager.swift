@@ -2,13 +2,18 @@ import SwiftUI
 import AirTodayCore
 
 /// Horizontal paged navigation across saved locations.
-/// Each page is a full-width LocationPage with its own atmosphere + data.
+/// One shared atmosphere sits behind full-width LocationPages, so the scene
+/// carries across swipes instead of cutting from page to page.
 public struct LocationPager: View {
     @Bindable var locationManager: LocationManager
     let locationService: LocationService
-    @State private var showingSettings = false
     @State private var showingSearch = false
-    @State private var scrollOffset: CGFloat = 0
+    /// Each page's vertical scroll offset, keyed by location.
+    @State private var pageOffsets: [UUID: CGFloat] = [:]
+    /// Fractional horizontal page index (1.5 = halfway between pages 1 and 2).
+    @State private var pagePosition: CGFloat = 0
+    @State private var renderQuality = RenderQuality()
+    @AppStorage("parallax_enabled") private var parallaxEnabled = true
 
     public init(locationManager: LocationManager, locationService: LocationService) {
         self.locationManager = locationManager
@@ -21,6 +26,7 @@ public struct LocationPager: View {
                 if locationManager.locations.isEmpty {
                     emptyStateView
                 } else {
+                    backdrop
                     pagerContent
                 }
 
@@ -48,9 +54,11 @@ public struct LocationPager: View {
                         // Glass blur appears as user scrolls into detail cards
                         Rectangle()
                             .fill(.ultraThinMaterial)
-                            .opacity(Double(min(1, max(0, scrollOffset / 200))))
+                            .opacity(Double(min(1, max(0, selectedPageOffset / 200))))
                             .ignoresSafeArea(edges: .top)
                     }
+
+                    refreshIndicator
                     Spacer()
                 }
 
@@ -72,7 +80,10 @@ public struct LocationPager: View {
                     PrivacyPolicyView()
                 }
             }
-            .onPreferenceChange(ScrollOffsetKey.self) { scrollOffset = $0 }
+            .onPreferenceChange(PageScrollOffsetsKey.self) { pageOffsets = $0 }
+            .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
+                renderQuality.update()
+            }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingSearch) {
                 LocationSearchView(locationManager: locationManager)
@@ -96,6 +107,60 @@ public struct LocationPager: View {
                 old != nil && old != new
             }
         }
+    }
+
+    // MARK: - Atmosphere
+
+    private var selectedPageOffset: CGFloat {
+        locationManager.selectedLocationID.flatMap { pageOffsets[$0] } ?? 0
+    }
+
+    /// The page closest to the centre of the screen, which owns haze and particles.
+    private var nearestLocation: SavedLocation? {
+        let locations = locationManager.locations
+        guard !locations.isEmpty else { return nil }
+        let index = min(max(Int(pagePosition.rounded()), 0), locations.count - 1)
+        return locations[index]
+    }
+
+    private var backdrop: some View {
+        let nearestStore = nearestLocation.map { locationManager.store(for: $0) }
+        return AtmosphereBackdrop(
+            layers: locationManager.locations.map { location in
+                AtmosphereBackdrop.Layer(
+                    id: location.id,
+                    level: locationManager.store(for: location).currentAQI?.level ?? .good,
+                    scrollOffset: pageOffsets[location.id] ?? 0
+                )
+            },
+            pagePosition: pagePosition,
+            params: nearestStore?.currentAQI.map(AtmosphereParameters.init(from:)) ?? .placeholder,
+            isStirred: nearestStore?.state.isLoading ?? false,
+            parallaxEnabled: parallaxEnabled,
+            tier: renderQuality.tier
+        )
+    }
+
+    /// Shown while the visible page re-fetches data it already had (pull to refresh,
+    /// relocation). The system refresh control sits under the status bar in this
+    /// full-bleed layout and can't be seen, so the pager draws its own, in the AQI colour.
+    @ViewBuilder
+    private var refreshIndicator: some View {
+        let store = nearestLocation.map { locationManager.store(for: $0) }
+        let isRefreshing = store.map { $0.state.isLoading && $0.currentAQI != nil } ?? false
+
+        ZStack {
+            if isRefreshing {
+                ProgressView()
+                    .tint(store?.currentAQI?.level.color ?? .white)
+                    .padding(10)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .shadow(color: .black.opacity(0.3), radius: 4)
+                    .transition(.opacity.combined(with: .scale(scale: 0.6)))
+                    .accessibilityLabel("Refreshing")
+            }
+        }
+        .animation(DS.Motion.quick, value: isRefreshing)
     }
 
     // MARK: - Pager
@@ -123,6 +188,11 @@ public struct LocationPager: View {
         .scrollPosition(id: $locationManager.selectedLocationID)
         .scrollIndicators(.hidden)
         .ignoresSafeArea()
+        .onScrollGeometryChange(for: CGFloat.self) { geo in
+            geo.contentOffset.x / max(geo.containerSize.width, 1)
+        } action: { _, position in
+            pagePosition = position
+        }
     }
 
     private func topBarIcon(_ systemName: String) -> some View {
@@ -154,7 +224,7 @@ public struct LocationPager: View {
                 let position = locations.count > 1 ? " \(index + 1)/\(locations.count)" : ""
 
                 Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    withAnimation(DS.Motion.quick) {
                         locationManager.selectedLocationID = location.id
                     }
                 } label: {
@@ -180,7 +250,14 @@ public struct LocationPager: View {
                     }
                     .padding(.horizontal, isSelected ? 10 : 6)
                     .padding(.vertical, 5)
-                    .background(isSelected ? .black.opacity(0.35) : .clear, in: Capsule())
+                    .background {
+                        if isSelected {
+                            // The page's AQI colour, quietly, behind its name.
+                            Capsule()
+                                .fill(.black.opacity(0.35))
+                                .overlay(Capsule().fill(levelColor.opacity(0.22)))
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(name), location \(index + 1) of \(locations.count)")
@@ -191,7 +268,7 @@ public struct LocationPager: View {
         .padding(.vertical, 2)
         .background(.black.opacity(0.2), in: Capsule())
         .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: locationManager.selectedLocationID)
+        .animation(DS.Motion.quick, value: locationManager.selectedLocationID)
     }
 
     // MARK: - Empty State

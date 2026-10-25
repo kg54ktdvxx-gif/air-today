@@ -61,7 +61,7 @@ public struct MapScreen: View {
                     stationCallout(station)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .animation(.spring(response: 0.3), value: selectedStation)
+                .animation(DS.Motion.quick, value: selectedStation)
             }
         }
     }

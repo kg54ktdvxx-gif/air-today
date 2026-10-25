@@ -44,6 +44,19 @@ public enum DS {
     public static let cardHeaderTop: CGFloat = 12
     public static let cardHeaderBottom: CGFloat = 8
 
+    // MARK: - Motion
+
+    /// The only three curves the app animates with, so every transition feels
+    /// like part of the same world. Pick by what is moving, not by taste.
+    public enum Motion {
+        /// Direct responses to a touch: selection, toggles, page dots, pills.
+        public static let quick = Animation.spring(response: 0.3, dampingFraction: 0.82)
+        /// Content changing shape or value: expanding cards, the AQI number, steps.
+        public static let standard = Animation.spring(response: 0.55, dampingFraction: 0.86)
+        /// The atmosphere itself: backgrounds, colour, haze — slow, like weather.
+        public static let atmospheric = Animation.easeInOut(duration: 1.4)
+    }
+
     // MARK: - Text Shadows
 
     /// Strong shadow for text over atmosphere gradients
@@ -75,9 +88,11 @@ public enum DS {
 
 // MARK: - Scroll Offset Preference
 
-public struct ScrollOffsetKey: PreferenceKey {
-    public static let defaultValue: CGFloat = 0
-    public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
+/// Each location page's vertical scroll offset, keyed by location. A single
+/// CGFloat would be overwritten by whichever page the pager laid out last.
+public struct PageScrollOffsetsKey: PreferenceKey {
+    public static let defaultValue: [UUID: CGFloat] = [:]
+    public static func reduce(value: inout [UUID: CGFloat], nextValue: () -> [UUID: CGFloat]) {
+        value.merge(nextValue()) { _, new in new }
     }
 }

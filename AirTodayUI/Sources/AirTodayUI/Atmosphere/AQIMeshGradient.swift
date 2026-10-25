@@ -22,7 +22,7 @@ public struct AQIMeshGradient: View {
                 smoothsColors: true
             )
         }
-        .animation(.easeInOut(duration: 1.5), value: params.meshColors)
+        .animation(DS.Motion.atmospheric, value: params.meshColors)
         .ignoresSafeArea()
     }
 
