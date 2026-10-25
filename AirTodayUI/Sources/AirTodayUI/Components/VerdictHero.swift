@@ -7,7 +7,13 @@ public struct VerdictHero: View {
     let state: LoadingState
     let heroOpacity: Double
     let hasScrolled: Bool
+    /// Metres from the device to the reporting station; nil for saved cities
+    /// (their coordinate is the station itself) or without a location fix.
+    let distanceFromUser: Double?
     let onRetry: () async -> Void
+
+    @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
+    private var temperatureUnit: TemperatureUnit = .celsius
 
     private static let guidanceService = ActivityGuidanceService()
 
@@ -16,12 +22,14 @@ public struct VerdictHero: View {
         state: LoadingState,
         heroOpacity: Double,
         hasScrolled: Bool,
+        distanceFromUser: Double? = nil,
         onRetry: @escaping () async -> Void
     ) {
         self.quality = quality
         self.state = state
         self.heroOpacity = heroOpacity
         self.hasScrolled = hasScrolled
+        self.distanceFromUser = distanceFromUser
         self.onRetry = onRetry
     }
 
@@ -90,6 +98,13 @@ public struct VerdictHero: View {
                     value: quality.aqi
                 )
 
+            // Without the standard and direction, "82" means nothing to most people.
+            Text("US EPA AQI · Scale 0–500 · Lower is better")
+                .font(.system(.caption, design: .rounded, weight: .medium))
+                .foregroundStyle(.white.opacity(0.65))
+                .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
+                .padding(.top, -6)
+
             HStack(spacing: 8) {
                 Text(quality.level.shortLabel)
                 if let dominant = quality.dominantPollutant {
@@ -107,7 +122,7 @@ public struct VerdictHero: View {
                 .padding(.top, 48)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(quality.level.verdict). Air Quality Index \(quality.aqi), \(quality.level.label)")
+        .accessibilityLabel("\(guidance.verdict). US EPA Air Quality Index \(quality.aqi) out of 500, \(quality.level.label). Lower is better.")
 
         Spacer()
 
@@ -119,7 +134,7 @@ public struct VerdictHero: View {
                 .multilineTextAlignment(.center)
                 .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
 
-            Text(Self.updatedText(quality.timestamp))
+            Text(Self.freshnessText(measuredAt: quality.timestamp, distance: distanceFromUser))
                 .font(.system(.footnote, design: .rounded))
                 .foregroundStyle(.white.opacity(0.6))
                 .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
@@ -141,8 +156,8 @@ public struct VerdictHero: View {
     private func conditionsRow(_ weather: Weather) -> some View {
         let items = Self.conditionItems(
             weather,
-            uviForecast: quality?.uviForecast ?? [],
-            quality: quality
+            quality: quality,
+            temperatureUnit: temperatureUnit
         )
         if !items.isEmpty {
             HStack(spacing: 24) {
@@ -165,8 +180,8 @@ public struct VerdictHero: View {
 
     private static func conditionItems(
         _ weather: Weather,
-        uviForecast: [UVIForecastPoint],
-        quality: AirQuality?
+        quality: AirQuality?,
+        temperatureUnit: TemperatureUnit
     ) -> [(icon: String, value: String, label: String)] {
         var items: [(icon: String, value: String, label: String)] = []
 
@@ -178,7 +193,7 @@ public struct VerdictHero: View {
 
         // 2. Temperature
         if let temp = weather.temperature {
-            items.append(("thermometer.medium", "\(Int(temp))°", "Temp"))
+            items.append(("thermometer.medium", temperatureUnit.format(celsius: temp), "Temp"))
         }
 
         // 3. Wind (if notable)
@@ -187,6 +202,16 @@ public struct VerdictHero: View {
         }
 
         return items
+    }
+
+    /// "Updated 12 min ago · 2.4 km away" — how fresh and how local the reading is.
+    private static func freshnessText(measuredAt: Date, distance: Double?) -> String {
+        let updated = updatedText(measuredAt)
+        guard let distance else { return updated }
+        let formatted = Measurement(value: distance, unit: UnitLength.meters).formatted(
+            .measurement(width: .abbreviated, usage: .road, numberFormatStyle: .number.precision(.fractionLength(0...1)))
+        )
+        return "\(updated) · \(formatted) away"
     }
 
     /// `date` is when the station measured, not when the app fetched.

@@ -57,6 +57,12 @@ public struct AirQuality: Codable, Sendable {
         return .stable
     }
 
+    /// Today's UV forecast for the station's local date, if WAQI provides one.
+    public var todayUVForecast: UVIForecastPoint? {
+        let today = Self.todayDateString(timeZoneOffset: timeZoneOffset)
+        return uviForecast.first { $0.day == today }
+    }
+
     /// Returns today's date string (yyyy-MM-dd) in the station's local timezone.
     static func todayDateString(timeZoneOffset: Int?, now: Date = Date()) -> String {
         let f = DateFormatter()

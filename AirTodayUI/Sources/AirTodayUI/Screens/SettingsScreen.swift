@@ -10,7 +10,8 @@ public struct SettingsScreen: View {
     @State private var pendingDeleteOffsets: IndexSet?
     @State private var cacheCleared = false
     @AppStorage("parallax_enabled") private var parallaxEnabled = true
-    @AppStorage("temp_unit") private var temperatureUnit = "celsius"
+    @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
+    private var temperatureUnit: TemperatureUnit = .celsius
 
     public init(locationManager: LocationManager) {
         self.locationManager = locationManager
@@ -41,7 +42,7 @@ public struct SettingsScreen: View {
                     showingDeleteConfirmation = true
                 }
 
-                if locationManager.locations.count < 6 {
+                if locationManager.canAddLocation {
                     Button {
                         showingSearch = true
                     } label: {
@@ -52,8 +53,9 @@ public struct SettingsScreen: View {
 
             Section("Display") {
                 Picker(selection: $temperatureUnit) {
-                    Text("Celsius").tag("celsius")
-                    Text("Fahrenheit").tag("fahrenheit")
+                    ForEach(TemperatureUnit.allCases, id: \.self) { unit in
+                        Text(unit.displayName).tag(unit)
+                    }
                 } label: {
                     Label("Temperature Unit", systemImage: "thermometer.medium")
                 }

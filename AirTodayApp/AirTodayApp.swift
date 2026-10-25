@@ -15,6 +15,8 @@ struct AirTodayApp: App {
     private static let backgroundTaskID = "com.airtoday.app.refresh"
 
     init() {
+        Preferences.migrateToSharedDefaults()
+
         let location = LocationService()
         let service = AirQualityService(token: AppConstants.waqiToken)
         _locationService = State(initialValue: location)

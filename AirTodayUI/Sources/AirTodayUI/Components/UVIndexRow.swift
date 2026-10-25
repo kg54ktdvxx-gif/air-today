@@ -4,9 +4,11 @@ import AirTodayCore
 /// UV Index display row for the conditions card.
 public struct UVIndexRow: View {
     let uvIndex: Int
+    let caption: String
 
-    public init(uvIndex: Int) {
+    public init(uvIndex: Int, caption: String = "UV Index") {
         self.uvIndex = uvIndex
+        self.caption = caption
     }
 
     public var body: some View {
@@ -25,7 +27,7 @@ public struct UVIndexRow: View {
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(uvColor)
                 }
-                Text("UV Index")
+                Text(caption)
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(DS.opacityTertiary))
             }
@@ -33,7 +35,7 @@ public struct UVIndexRow: View {
             Spacer()
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("UV Index: \(uvIndex), \(riskLevel)")
+        .accessibilityLabel("\(caption): \(uvIndex), \(riskLevel)")
     }
 
     private var riskLevel: String {

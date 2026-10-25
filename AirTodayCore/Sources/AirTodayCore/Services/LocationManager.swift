@@ -68,6 +68,10 @@ public final class LocationManager {
         }
     }
 
+    public var canAddLocation: Bool {
+        locations.count < Self.maxLocations
+    }
+
     public var selectedStore: AirQualityStore? {
         guard let id = selectedLocationID,
               let location = locations.first(where: { $0.id == id })

@@ -6,6 +6,8 @@ import AirTodayCore
 public struct LocationPage: View {
     let store: AirQualityStore
     let location: SavedLocation
+    /// The device's position, passed only for the current-location page.
+    let userCoordinate: Coordinate?
     let onRetry: () async -> Void
 
     @State private var renderQuality = RenderQuality()
@@ -13,13 +15,20 @@ public struct LocationPage: View {
     @State private var hasScrolled = false
     @State private var nearbyStations: [MapStation] = []
     @AppStorage("parallax_enabled") private var parallaxEnabled = true
-    @AppStorage("temp_unit") private var temperatureUnit = "celsius"
+    @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
+    private var temperatureUnit: TemperatureUnit = .celsius
 
     private static let guidanceService = ActivityGuidanceService()
 
-    public init(store: AirQualityStore, location: SavedLocation, onRetry: @escaping () async -> Void) {
+    public init(
+        store: AirQualityStore,
+        location: SavedLocation,
+        userCoordinate: Coordinate? = nil,
+        onRetry: @escaping () async -> Void
+    ) {
         self.store = store
         self.location = location
+        self.userCoordinate = userCoordinate
         self.onRetry = onRetry
     }
 
@@ -157,8 +166,14 @@ public struct LocationPage: View {
             state: store.state,
             heroOpacity: heroOpacity,
             hasScrolled: hasScrolled,
+            distanceFromUser: distanceFromUser,
             onRetry: onRetry
         )
+    }
+
+    private var distanceFromUser: Double? {
+        guard let userCoordinate, let station = store.currentAQI?.station.coordinate else { return nil }
+        return userCoordinate.distance(to: station)
     }
 
     // MARK: - Detail Cards
@@ -266,9 +281,7 @@ public struct LocationPage: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DS.spacingMD) {
                 if let temp = weather.temperature {
-                    let displayTemp = temperatureUnit == "fahrenheit" ? Int(temp * 9 / 5 + 32) : Int(temp)
-                    let unit = temperatureUnit == "fahrenheit" ? "F" : "C"
-                    conditionItem(icon: "thermometer.medium", value: "\(displayTemp)\u{00B0}\(unit)", label: "Temperature")
+                    conditionItem(icon: "thermometer.medium", value: temperatureUnit.format(celsius: temp), label: "Temperature")
                 }
                 if let humidity = weather.humidity {
                     conditionItem(icon: "humidity.fill", value: "\(Int(humidity))%", label: "Humidity")
@@ -280,9 +293,7 @@ public struct LocationPage: View {
                     conditionItem(icon: "gauge.medium", value: "\(Int(pressure)) hPa", label: "Pressure")
                 }
                 if let dew = weather.dewPoint {
-                    let displayDew = temperatureUnit == "fahrenheit" ? Int(dew * 9 / 5 + 32) : Int(dew)
-                    let unit = temperatureUnit == "fahrenheit" ? "F" : "C"
-                    conditionItem(icon: "drop.fill", value: "\(displayDew)\u{00B0}\(unit)", label: "Dew Point")
+                    conditionItem(icon: "drop.fill", value: temperatureUnit.format(celsius: dew), label: "Dew Point")
                 }
                 if let tzOffset = quality.timeZoneOffset {
                     let lat = quality.station.coordinate.latitude
@@ -291,11 +302,13 @@ public struct LocationPage: View {
                         conditionItem(icon: "sunset.fill", value: SunCalculator.formatTime(sunsetDate, timeZoneOffset: tzOffset), label: "Sunset")
                     }
                 }
+                // WAQI has no live UV, only a daily forecast — so this is labelled as
+                // today's forecast peak rather than competing with hourly UV readings.
+                if let uv = quality.todayUVForecast {
+                    UVIndexRow(uvIndex: uv.max, caption: "Forecast UV peak")
+                }
             }
             .padding(DS.spacingLG)
-
-            // UV Index removed — WAQI only provides daily forecast (avg/min/max),
-            // not real-time UV. Showing forecast peak was misleading vs Apple Weather.
         }
         .background { DS.cardBackground }
     }

@@ -29,14 +29,18 @@ public struct LocationPager: View {
                     HStack {
                         pageIndicator
                         Spacer()
-                        NavigationLink(value: AppRoute.settings) {
-                            Image(systemName: "gearshape")
-                                .font(.body.weight(.medium))
-                                .foregroundStyle(.white.opacity(0.9))
-                                .padding(8)
-                                .background(.black.opacity(0.25), in: Circle())
-                                .shadow(color: .black.opacity(0.3), radius: 4)
+                        if locationManager.canAddLocation {
+                            Button {
+                                showingSearch = true
+                            } label: {
+                                topBarIcon("plus")
+                            }
+                            .accessibilityLabel("Add City")
                         }
+                        NavigationLink(value: AppRoute.settings) {
+                            topBarIcon("gearshape")
+                        }
+                        .accessibilityLabel("Settings")
                     }
                     .padding(.horizontal, DS.spacingLG)
                     .padding(.vertical, 8)
@@ -70,6 +74,9 @@ public struct LocationPager: View {
             }
             .onPreferenceChange(ScrollOffsetKey.self) { scrollOffset = $0 }
             .toolbar(.hidden, for: .navigationBar)
+            .sheet(isPresented: $showingSearch) {
+                LocationSearchView(locationManager: locationManager)
+            }
             .task {
                 await locationManager.refreshIfNeeded()
             }
@@ -98,7 +105,13 @@ public struct LocationPager: View {
             LazyHStack(spacing: 0) {
                 ForEach(locationManager.locations) { location in
                     let store = locationManager.store(for: location)
-                    LocationPage(store: store, location: location) {
+                    LocationPage(
+                        store: store,
+                        location: location,
+                        userCoordinate: location.isCurrentLocation
+                            ? locationService.coordinate.map(Coordinate.init)
+                            : nil
+                    ) {
                         await locationManager.refresh(location: location)
                     }
                     .containerRelativeFrame([.horizontal, .vertical])
@@ -112,15 +125,33 @@ public struct LocationPager: View {
         .ignoresSafeArea()
     }
 
+    private func topBarIcon(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.body.weight(.medium))
+            .foregroundStyle(.white.opacity(0.9))
+            .frame(width: 20, height: 20)
+            .padding(8)
+            .background(.black.opacity(0.25), in: Circle())
+            .shadow(color: .black.opacity(0.3), radius: 4)
+    }
+
     // MARK: - Page Indicator
 
+    private func shortName(_ location: SavedLocation) -> String {
+        location.isCurrentLocation
+            ? "My Location"
+            : location.name.components(separatedBy: ",").first ?? location.name
+    }
+
     private var pageIndicator: some View {
-        HStack(spacing: 2) {
-            ForEach(locationManager.locations) { location in
+        let locations = locationManager.locations
+        return HStack(spacing: 2) {
+            ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
                 let isSelected = locationManager.selectedLocationID == location.id
                 let levelColor = locationManager.store(for: location).currentAQI?.level.color ?? .white
-                let name = location.isCurrentLocation ? "My Location" : location.name
-                    .components(separatedBy: ",").first ?? location.name
+                let name = shortName(location)
+                // Position only means something once there's more than one place.
+                let position = locations.count > 1 ? " \(index + 1)/\(locations.count)" : ""
 
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -133,11 +164,18 @@ public struct LocationPager: View {
                             .frame(width: 7, height: 7)
 
                         if isSelected {
-                            Text(name)
-                                .font(.system(.caption2, design: .rounded, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                                .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
+                            HStack(spacing: 0) {
+                                Text(name)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                Text(position)
+                                    .monospacedDigit()
+                                    .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                                    .fixedSize()
+                            }
+                            .font(.system(.caption2, design: .rounded, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                         }
                     }
                     .padding(.horizontal, isSelected ? 10 : 6)
@@ -145,6 +183,8 @@ public struct LocationPager: View {
                     .background(isSelected ? .black.opacity(0.35) : .clear, in: Capsule())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("\(name), location \(index + 1) of \(locations.count)")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
         .padding(.horizontal, 4)
@@ -199,9 +239,6 @@ public struct LocationPager: View {
                 }
                 .padding(.top, 8)
             }
-        }
-        .sheet(isPresented: $showingSearch) {
-            LocationSearchView(locationManager: locationManager)
         }
     }
 
