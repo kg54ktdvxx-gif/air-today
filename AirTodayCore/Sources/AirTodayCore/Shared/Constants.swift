@@ -19,5 +19,8 @@ public enum AppConstants {
     public static let cacheTTL: TimeInterval = 60 * 60  // 1 hour
     public static let backgroundRefreshInterval: TimeInterval = 60 * 60
     public static let liveActivityStaleMinutes: TimeInterval = 45 * 60
+    /// Moving further than this from where the current-location reading was
+    /// requested makes it stale, even inside the cache TTL.
+    public static let relocationThreshold: Double = 5_000  // metres
     public static let temperatureUnitKey = "temp_unit"
 }

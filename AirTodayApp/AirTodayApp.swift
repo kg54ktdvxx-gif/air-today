@@ -60,6 +60,11 @@ struct AirTodayApp: App {
             case .background:
                 Self.scheduleBackgroundRefresh()
             case .active:
+                // CLLocationManager only reports once per request; ask again so a
+                // device that moved while backgrounded gets its new location's air.
+                if locationService.hasPermission {
+                    locationService.requestLocation()
+                }
                 Task {
                     await locationManager.refreshIfNeeded()
                     if let store = locationManager.selectedStore,
@@ -87,17 +92,20 @@ struct AirTodayApp: App {
         let fetchTask = Task {
             let service = AirQualityService(token: AppConstants.waqiToken)
 
+            // Background tasks can't get a fresh fix with when-in-use permission,
+            // so reuse the coordinate the last foreground reading was requested for.
+            let queryCoordinate = SharedDataStore.queryCoordinate()
             let quality: AirQuality
-            if let cached = SharedDataStore.load() {
+            if let queryCoordinate {
                 quality = try await service.fetchCurrent(
-                    latitude: cached.station.coordinate.latitude,
-                    longitude: cached.station.coordinate.longitude
+                    latitude: queryCoordinate.latitude,
+                    longitude: queryCoordinate.longitude
                 )
             } else {
                 quality = try await service.fetchCurrent(city: "here")
             }
 
-            SharedDataStore.save(quality)
+            SharedDataStore.save(quality, queryCoordinate: queryCoordinate)
             WidgetCenter.shared.reloadAllTimelines()
         }
 

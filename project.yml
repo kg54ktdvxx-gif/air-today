@@ -38,8 +38,6 @@ targets:
     settings:
       base:
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Air Today uses your location to show nearby air quality data."
-        INFOPLIST_KEY_UILaunchScreen_Generation: true
-        INFOPLIST_KEY_UILaunchScreen: ""
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
         INFOPLIST_KEY_UIRequiresFullScreen: true

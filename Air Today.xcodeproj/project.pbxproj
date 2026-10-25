@@ -126,7 +126,6 @@
 				40E3C1D7F434E71E88A3A406 /* Assets.xcassets */,
 				3989B624C3D78C696BA519C8 /* Info.plist */,
 				48FACEF71CB7C13D658740C5 /* PrivacyInfo.xcprivacy */,
-				8E9D58F353E41A5EEADA6C04 /* Preview Content */,
 				B9AF2936DFDEE4AACC41F3F8 /* Shaders */,
 			);
 			path = AirTodayApp;
@@ -140,13 +139,6 @@
 				1FDE7F3EDF163FB2D59C2B1B /* Info.plist */,
 			);
 			path = AirTodayLiveActivity;
-			sourceTree = "<group>";
-		};
-		8E9D58F353E41A5EEADA6C04 /* Preview Content */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = "Preview Content";
 			sourceTree = "<group>";
 		};
 		9F7AC57942F96C0CAFD4E116 = {
@@ -372,8 +364,6 @@
 				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = fetch;
-				INFOPLIST_KEY_UILaunchScreen = "";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -421,8 +411,6 @@
 				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = fetch;
-				INFOPLIST_KEY_UILaunchScreen = "";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -5,7 +5,6 @@ import AirTodayCore
 public struct VerdictHero: View {
     let quality: AirQuality?
     let state: LoadingState
-    let lastRefreshed: Date?
     let heroOpacity: Double
     let hasScrolled: Bool
     let onRetry: () async -> Void
@@ -15,14 +14,12 @@ public struct VerdictHero: View {
     public init(
         quality: AirQuality?,
         state: LoadingState,
-        lastRefreshed: Date?,
         heroOpacity: Double,
         hasScrolled: Bool,
         onRetry: @escaping () async -> Void
     ) {
         self.quality = quality
         self.state = state
-        self.lastRefreshed = lastRefreshed
         self.heroOpacity = heroOpacity
         self.hasScrolled = hasScrolled
         self.onRetry = onRetry
@@ -122,12 +119,10 @@ public struct VerdictHero: View {
                 .multilineTextAlignment(.center)
                 .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
 
-            if let lastRefreshed {
-                Text(Self.updatedText(lastRefreshed))
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
-            }
+            Text(Self.updatedText(quality.timestamp))
+                .font(.system(.footnote, design: .rounded))
+                .foregroundStyle(.white.opacity(0.6))
+                .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
 
             Image(systemName: "chevron.compact.down")
                 .font(.title2)
@@ -194,11 +189,13 @@ public struct VerdictHero: View {
         return items
     }
 
+    /// `date` is when the station measured, not when the app fetched.
     private static func updatedText(_ date: Date) -> String {
-        let minutes = Int(Date().timeIntervalSince(date) / 60)
+        let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
         if minutes < 1 { return "Updated just now" }
-        if minutes == 1 { return "Updated 1 min ago" }
-        return "Updated \(minutes) min ago"
+        if minutes < 60 { return "Updated \(minutes) min ago" }
+        let hours = minutes / 60
+        return hours == 1 ? "Updated 1 hr ago" : "Updated \(hours) hr ago"
     }
 
     // MARK: - Error

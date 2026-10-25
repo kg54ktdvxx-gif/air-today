@@ -130,18 +130,16 @@ public struct AirQualityService: AirQualityServiceProtocol {
     }
 
     private func mapToAirQuality(_ data: WAQIFeedData) -> AirQuality {
+        let timeZoneOffset = Self.parseTimeZoneOffset(data.time.tz)
+        // Forecast days are station-local dates, so "today" must be the station's today.
+        let stationToday = AirQuality.todayDateString(timeZoneOffset: timeZoneOffset)
+
         let pollutants = parsePollutants(from: data.iaqi)
         let weather = parseWeather(from: data.iaqi)
-        let forecast = parseForecast(from: data.forecast)
-        let uviForecast = parseUVIForecast(from: data.forecast)
+        let forecast = Self.parseForecast(from: data.forecast, today: stationToday)
+        let uviForecast = Self.parseUVIForecast(from: data.forecast, today: stationToday)
         let dominantPollutant = Pollutant.Kind(rawValue: data.dominentpol ?? "")
-
-        let timestamp: Date
-        if let unix = data.time.v {
-            timestamp = Date(timeIntervalSince1970: TimeInterval(unix))
-        } else {
-            timestamp = Date()
-        }
+        let timestamp = Self.parseMeasurementTime(data.time, timeZoneOffset: timeZoneOffset)
 
         let station = Station(
             id: data.idx,
@@ -156,8 +154,6 @@ public struct AirQualityService: AirQualityServiceProtocol {
         let attribution = (data.attributions ?? []).map {
             Attribution(name: $0.name, url: $0.url ?? "")
         }
-
-        let timeZoneOffset = Self.parseTimeZoneOffset(data.time.tz)
 
         return AirQuality(
             aqi: data.aqi ?? 0,
@@ -196,16 +192,10 @@ public struct AirQualityService: AirQualityServiceProtocol {
         )
     }
 
-    private func parseForecast(from forecast: WAQIForecast?) -> [DailyForecast] {
+    /// `today` is the station-local date (yyyy-MM-dd); earlier days are dropped.
+    static func parseForecast(from forecast: WAQIForecast?, today: String) -> [DailyForecast] {
         guard let daily = forecast?.daily else { return [] }
         var results: [DailyForecast] = []
-
-        // Today's date string in device timezone for filtering stale entries.
-        let todayFormatter = DateFormatter()
-        todayFormatter.dateFormat = "yyyy-MM-dd"
-        todayFormatter.locale = Locale(identifier: "en_US_POSIX")
-        todayFormatter.timeZone = .current
-        let today = todayFormatter.string(from: Date())
 
         let pollutantMap: [(String, Pollutant.Kind)] = [
             ("pm25", .pm25), ("pm10", .pm10), ("o3", .o3),
@@ -230,7 +220,7 @@ public struct AirQualityService: AirQualityServiceProtocol {
     }
 
     /// Parse WAQI timezone string like "+05:30" or "-08:00" into seconds from GMT.
-    private static func parseTimeZoneOffset(_ tz: String?) -> Int? {
+    static func parseTimeZoneOffset(_ tz: String?) -> Int? {
         guard let tz, !tz.isEmpty else { return nil }
         let clean = tz.trimmingCharacters(in: .whitespaces)
         let sign: Int = clean.hasPrefix("-") ? -1 : 1
@@ -241,14 +231,28 @@ public struct AirQualityService: AirQualityServiceProtocol {
         return sign * (hours * 3600 + minutes * 60)
     }
 
-    private func parseUVIForecast(from forecast: WAQIForecast?) -> [UVIForecastPoint] {
+    /// `today` is the station-local date (yyyy-MM-dd); earlier days are dropped.
+    static func parseUVIForecast(from forecast: WAQIForecast?, today: String) -> [UVIForecastPoint] {
         guard let daily = forecast?.daily,
               let entries = daily["uvi"]
         else { return [] }
 
-        return entries.map { entry in
-            UVIForecastPoint(day: entry.day, avg: entry.avg, min: entry.min, max: entry.max)
+        return entries
+            .filter { $0.day >= today }
+            .map { UVIForecastPoint(day: $0.day, avg: $0.avg, min: $0.min, max: $0.max) }
+    }
+
+    /// WAQI's `v` is the station's wall-clock time encoded as if it were UTC
+    /// (Shanghai 10:00 +08:00 arrives as v = 10:00Z), so the offset-qualified
+    /// `iso` field is used, falling back to `v` corrected by the station offset.
+    static func parseMeasurementTime(_ time: WAQITime, timeZoneOffset: Int?) -> Date {
+        if let iso = time.iso, let date = try? Date(iso, strategy: .iso8601) {
+            return date
         }
+        if let unix = time.v {
+            return Date(timeIntervalSince1970: TimeInterval(unix - (timeZoneOffset ?? 0)))
+        }
+        return Date()
     }
 }
 

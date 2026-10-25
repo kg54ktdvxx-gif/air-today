@@ -85,9 +85,9 @@ public final class LocationManager {
     }
 
     public func removeLocation(at offsets: IndexSet) {
-        let idsToRemove = offsets.map { locations[$0].id }
         // Don't allow removing current location
         let filtered = offsets.filter { !locations[$0].isCurrentLocation }
+        let idsToRemove = filtered.map { locations[$0].id }
         locations.remove(atOffsets: IndexSet(filtered))
         for id in idsToRemove {
             stores.removeValue(forKey: id)

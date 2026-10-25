@@ -5,7 +5,7 @@ platform :ios do
   lane :build do
     build_app(
       project: "Air Today.xcodeproj",
-      scheme: "AirToday",
+      scheme: "Air Today",
       export_method: "app-store",
       output_directory: "./build",
       output_name: "AirToday.ipa",
@@ -28,23 +28,8 @@ platform :ios do
       submit_for_review: false,
       automatic_release: false,
       skip_screenshots: true,
-      force: true,
-      metadata_path: "./metadata/fastlane"
-    )
-  end
-
-  desc "Take App Store screenshots"
-  lane :screenshots do
-    capture_screenshots(
-      project: "Air Today.xcodeproj",
-      scheme: "AirTodayUITests",
-      output_directory: "./metadata/screenshots",
-      clear_previous_screenshots: true,
-      devices: [
-        "iPhone 16 Pro Max",
-        "iPhone 16 Pro",
-        "iPhone 16e"
-      ]
+      skip_metadata: true,
+      force: true
     )
   end
 

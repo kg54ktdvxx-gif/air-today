@@ -29,7 +29,7 @@ public struct LocationPager: View {
                     HStack {
                         pageIndicator
                         Spacer()
-                        NavigationLink(value: "settings") {
+                        NavigationLink(value: AppRoute.settings) {
                             Image(systemName: "gearshape")
                                 .font(.body.weight(.medium))
                                 .foregroundStyle(.white.opacity(0.9))
@@ -60,15 +60,23 @@ public struct LocationPager: View {
                     .padding(.top, 50)
                 }
             }
-            .navigationDestination(for: String.self) { destination in
-                if destination == "settings" {
+            .navigationDestination(for: AppRoute.self) { route in
+                switch route {
+                case .settings:
                     SettingsScreen(locationManager: locationManager)
+                case .privacyPolicy:
+                    PrivacyPolicyView()
                 }
             }
             .onPreferenceChange(ScrollOffsetKey.self) { scrollOffset = $0 }
             .toolbar(.hidden, for: .navigationBar)
             .task {
                 await locationManager.refreshIfNeeded()
+            }
+            .onChange(of: locationService.coordinate.map(Coordinate.init)) {
+                // A new GPS fix (first grant, or the device moved) can make the
+                // current-location reading stale before its cache TTL runs out.
+                Task { await locationManager.refreshIfNeeded() }
             }
             .onChange(of: locationManager.selectedLocationID) { _, newID in
                 guard let newID,

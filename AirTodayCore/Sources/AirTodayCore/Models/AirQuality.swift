@@ -58,7 +58,7 @@ public struct AirQuality: Codable, Sendable {
     }
 
     /// Returns today's date string (yyyy-MM-dd) in the station's local timezone.
-    private static func todayDateString(timeZoneOffset: Int?) -> String {
+    static func todayDateString(timeZoneOffset: Int?, now: Date = Date()) -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -67,7 +67,7 @@ public struct AirQuality: Codable, Sendable {
         } else {
             f.timeZone = .current
         }
-        return f.string(from: Date())
+        return f.string(from: now)
     }
 }
 

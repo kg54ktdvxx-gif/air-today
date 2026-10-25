@@ -2,7 +2,7 @@ import ActivityKit
 import Foundation
 
 public struct AirQualityAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
+    public struct ContentState: Codable, Hashable, Sendable {
         public let aqi: Int
         public let level: AQILevel
         public let dominantPollutant: String

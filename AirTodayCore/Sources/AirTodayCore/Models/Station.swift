@@ -27,6 +27,16 @@ public struct Coordinate: Codable, Sendable, Hashable {
         self.latitude = latitude
         self.longitude = longitude
     }
+
+    public init(_ coordinate: CLLocationCoordinate2D) {
+        self.init(latitude: coordinate.latitude, longitude: coordinate.longitude)
+    }
+
+    /// Great-circle distance in metres.
+    public func distance(to other: Coordinate) -> CLLocationDistance {
+        CLLocation(latitude: latitude, longitude: longitude)
+            .distance(from: CLLocation(latitude: other.latitude, longitude: other.longitude))
+    }
 }
 
 public struct Attribution: Codable, Sendable, Identifiable {

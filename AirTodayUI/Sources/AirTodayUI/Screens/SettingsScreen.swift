@@ -71,7 +71,7 @@ public struct SettingsScreen: View {
                         .foregroundStyle(.white.opacity(DS.opacityTertiary))
                 }
 
-                NavigationLink(value: "privacy") {
+                NavigationLink(value: AppRoute.privacyPolicy) {
                     Label("Privacy Policy", systemImage: "hand.raised")
                 }
 
@@ -107,11 +107,6 @@ public struct SettingsScreen: View {
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .navigationDestination(for: String.self) { destination in
-            if destination == "privacy" {
-                PrivacyPolicyView()
-            }
-        }
         .sheet(isPresented: $showingSearch) {
             LocationSearchView(locationManager: locationManager)
         }
@@ -139,8 +134,6 @@ public struct SettingsScreen: View {
     }
 
     private func clearCache() {
-        guard let defaults = UserDefaults(suiteName: AppConstants.appGroupID) else { return }
-        defaults.removeObject(forKey: "cached_air_quality")
-        defaults.removeObject(forKey: "cached_timestamp")
+        SharedDataStore.clear()
     }
 }

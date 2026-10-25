@@ -155,7 +155,6 @@ public struct LocationPage: View {
         return VerdictHero(
             quality: store.currentAQI,
             state: store.state,
-            lastRefreshed: store.lastRefreshed,
             heroOpacity: heroOpacity,
             hasScrolled: hasScrolled,
             onRetry: onRetry
