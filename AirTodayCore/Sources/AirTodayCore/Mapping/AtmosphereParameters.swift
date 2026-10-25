@@ -100,23 +100,32 @@ public struct AtmosphereParameters: Equatable, Sendable {
     /// Station-local time of day, for the sunrise/sunset/night tint.
     public let dayPhase: DayPhase
 
-    public init(from quality: AirQuality, at date: Date = Date()) {
-        let level = quality.level
-        let normalizedAQI = Float(min(quality.aqi, 500)) / 500.0
+    /// The atmosphere follows the chosen scale's severity, so the sky never looks
+    /// worse (or better) than the number shown. The visuals were tuned on US AQI
+    /// numbers, so other scales go through the equivalent AQI.
+    public init(from quality: AirQuality, scale: AQIScale = .usEPA, at date: Date = Date()) {
+        let reading = scale.displayReading(for: quality).reading
+        let level = reading.severityLevel
+        let aqi = reading.scale == .usEPA ? reading.value : Severity.equivalentUSAQI(at: reading.severity)
+        let normalizedAQI = Float(min(aqi, 500)) / 500.0
 
         self.meshColors = Self.meshPalette(for: level)
         self.hazeDensity = Self.hazeDensity(for: normalizedAQI)
         self.hazeColor = Self.hazeColor(for: level)
-        self.distortionAmplitude = quality.aqi > 150 ? Float(quality.aqi - 150) / 350.0 * 4.0 : 0.0
+        self.distortionAmplitude = aqi > 150 ? Float(aqi - 150) / 350.0 * 4.0 : 0.0
         self.saturation = Self.saturation(for: level)
         self.warmth = Self.warmth(for: level)
         self.particleConfig = Self.particleConfig(for: level).scaled(forWindSpeed: quality.weather.windSpeed)
-        self.dayPhase = DayPhase.at(
-            date,
-            latitude: quality.station.coordinate.latitude,
-            longitude: quality.station.coordinate.longitude,
-            timeZoneOffset: quality.timeZoneOffset ?? TimeZone.current.secondsFromGMT(for: date)
-        )
+        if let coordinate = quality.coordinate {
+            self.dayPhase = DayPhase.at(
+                date,
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                timeZoneOffset: quality.timeZoneOffset ?? TimeZone.current.secondsFromGMT(for: date)
+            )
+        } else {
+            self.dayPhase = .day
+        }
     }
 
     /// Default clean-air atmosphere for loading state.

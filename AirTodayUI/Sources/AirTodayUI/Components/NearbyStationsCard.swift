@@ -7,6 +7,7 @@ public struct NearbyStationsCard: View {
     let stations: [MapStation]
     let userCoordinate: Coordinate?
     @State private var showingFullMap = false
+    @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
 
     public init(stations: [MapStation], userCoordinate: Coordinate?) {
         self.stations = stations
@@ -65,8 +66,17 @@ public struct NearbyStationsCard: View {
             .frame(height: 200)
             .clipShape(RoundedRectangle(cornerRadius: DS.cornerRadiusSM))
             .padding(.horizontal, DS.spacingLG)
-            .padding(.bottom, DS.spacingMD)
+            .padding(.bottom, scale == .usEPA ? DS.spacingMD : DS.spacingSM)
             .allowsHitTesting(false)
+
+            // WAQI's map only has US EPA values.
+            if scale != .usEPA {
+                Text("Station readings on the US EPA AQI.")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(DS.opacityTertiary))
+                    .padding(.horizontal, DS.spacingLG)
+                    .padding(.bottom, DS.spacingMD)
+            }
         }
         .background { DS.cardBackground }
         .fullScreenCover(isPresented: $showingFullMap) {

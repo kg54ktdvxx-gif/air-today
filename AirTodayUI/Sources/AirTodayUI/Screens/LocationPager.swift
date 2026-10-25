@@ -31,6 +31,10 @@ public struct LocationPager: View {
     let locationService: LocationService
     @State private var showingSearch = false
     @State private var scrollState = PagerScrollState()
+    @AppStorage(DS.launchCountKey) private var launchCount = 0
+    @AppStorage(NotificationPreferences.Key.alertsOffered, store: .shared) private var alertsOffered = false
+    @AppStorage(NotificationPreferences.Key.thresholdAlerts, store: .shared) private var thresholdAlerts = false
+    @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
 
     public init(locationManager: LocationManager, locationService: LocationService) {
         self.locationManager = locationManager
@@ -72,7 +76,22 @@ public struct LocationPager: View {
                     }
 
                     PagerRefreshIndicator(locationManager: locationManager, scrollState: scrollState)
+                        // Below the page's place name.
+                        .padding(.top, 52)
                     Spacer()
+                }
+
+                // Once, for people updating from 1.1 (new installs see it in onboarding).
+                if !alertsOffered, !thresholdAlerts, !locationManager.locations.isEmpty {
+                    VStack {
+                        Spacer()
+                        AlertsOfferCard {
+                            withAnimation(DS.Motion.standard) { alertsOffered = true }
+                        }
+                        .padding(.horizontal, DS.spacingLG)
+                        .padding(.bottom, DS.spacingXL)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 // Location permission banner
@@ -98,6 +117,7 @@ public struct LocationPager: View {
                 LocationSearchView(locationManager: locationManager)
             }
             .task {
+                launchCount += 1
                 await locationManager.refreshIfNeeded()
             }
             .onChange(of: locationService.coordinate.map(Coordinate.init)) {
@@ -226,16 +246,20 @@ public struct LocationPager: View {
     /// e.g. "AQI 26 · Good", on the chosen scale.
     private func menuSubtitle(for location: SavedLocation) -> String {
         guard let quality = locationManager.store(for: location).currentAQI else { return "Loading…" }
-        let shown = AQIScale.current.displayReading(for: quality)
-        let label = shown.scale == .ukDAQI ? "DAQI" : shown.scale == .euCAQI ? "CAQI" : "AQI"
-        return "\(label) \(shown.reading.value) · \(shown.reading.band.name)"
+        let shown = scale.displayReading(for: quality)
+        return "\(shown.scale.compactName) \(shown.reading.value) · \(shown.reading.band.name)"
+    }
+
+    /// The city's band colour on the chosen scale; white while it loads.
+    private func bandColor(for location: SavedLocation) -> Color {
+        locationManager.store(for: location).currentAQI.map { scale.displayReading(for: $0).reading.band.color } ?? .white
     }
 
     private func indicatorCapsule(locations: [SavedLocation], selectedIndex: Int?) -> some View {
         HStack(spacing: 2) {
             ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
                 let isSelected = index == selectedIndex
-                let levelColor = locationManager.store(for: location).currentAQI?.level.color ?? .white
+                let levelColor = bandColor(for: location)
 
                 HStack(spacing: 4) {
                     marker(for: location, color: levelColor, isSelected: isSelected)
@@ -376,8 +400,8 @@ private struct PagerBackdrop: View {
     let scrollState: PagerScrollState
 
     @State private var renderQuality = RenderQuality()
-    @AppStorage("parallax_enabled") private var parallaxEnabled = true
     @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
+    @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -389,14 +413,13 @@ private struct PagerBackdrop: View {
                 let quality = locationManager.store(for: location).currentAQI
                 return AtmosphereBackdrop.Layer(
                     id: location.id,
-                    level: quality?.level ?? .good,
-                    params: quality.map { AtmosphereParameters(from: $0) } ?? .placeholder,
+                    level: quality.map { scale.displayReading(for: $0).reading.severityLevel } ?? .good,
+                    params: quality.map { AtmosphereParameters(from: $0, scale: scale) } ?? .placeholder,
                     scrollOffset: scrollState.pageOffsets[location.id] ?? 0
                 )
             },
             pagePosition: scrollState.pagePosition,
             isStirred: nearestStore?.state.isLoading ?? false,
-            parallaxEnabled: parallaxEnabled,
             motionEnabled: !reduceMotion && !reduceVisualEffects,
             effectsEnabled: !reduceVisualEffects,
             tier: renderQuality.tier
@@ -427,6 +450,7 @@ private struct TopBarBlur: View {
 private struct PagerRefreshIndicator: View {
     let locationManager: LocationManager
     let scrollState: PagerScrollState
+    @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
 
     var body: some View {
         let store = scrollState.nearestLocation(in: locationManager.locations).map { locationManager.store(for: $0) }
@@ -435,7 +459,7 @@ private struct PagerRefreshIndicator: View {
         ZStack {
             if isRefreshing {
                 ProgressView()
-                    .tint(store?.currentAQI?.level.color ?? .white)
+                    .tint(store?.currentAQI.map { scale.displayReading(for: $0).reading.band.color } ?? .white)
                     .padding(10)
                     .background(.ultraThinMaterial, in: Circle())
                     .shadow(color: .black.opacity(0.3), radius: 4)

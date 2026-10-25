@@ -21,7 +21,7 @@ struct ComplicationEntry: TimelineEntry {
     }
 
     var verdict: String? {
-        quality.map { ActivityGuidanceService().guidance(for: $0, at: date, profile: profile).verdict }
+        quality.map { ActivityGuidanceService().guidance(for: $0, scale: scale, at: date, profile: profile).verdict }
     }
 }
 
@@ -83,12 +83,7 @@ struct ComplicationView: View {
     }
 
     private func fraction(_ scale: AQIScale, _ value: Int) -> Double {
-        let top: Double = switch scale {
-        case .usEPA: 500
-        case .euCAQI: 125
-        case .ukDAQI: 10
-        }
-        return min(Double(value) / top, 1)
+        min(Double(value) / scale.gaugeTop, 1)
     }
 
     private func spoken(_ scale: AQIScale, _ reading: ScaledReading) -> String {
@@ -121,7 +116,7 @@ struct ComplicationView: View {
     }
 
     private func inline(_ scale: AQIScale, _ reading: ScaledReading) -> some View {
-        Text("\(scale == .ukDAQI ? "DAQI" : "AQI") \(reading.value) · \(reading.band.name)")
+        Text("\(scale.compactName) \(reading.value) · \(reading.band.name)")
             .accessibilityLabel(spoken(scale, reading))
     }
 

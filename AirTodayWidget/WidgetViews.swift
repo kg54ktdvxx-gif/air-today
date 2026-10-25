@@ -35,7 +35,11 @@ struct AQIWidgetEntryView: View {
     }
 
     private func spokenSummary(quality: AirQuality, scale: AQIScale, reading: ScaledReading, verdict: String) -> String {
-        "\(verdict). \(scale.accessibilityName): \(reading.value), \(reading.band.longName). Station: \(quality.station.name)\(entry.isStale ? ". Data may be outdated." : "")"
+        "\(verdict). \(scale.accessibilityName): \(reading.value), \(reading.band.longName)\(placeText(quality).map { ". \($0)" } ?? "")\(entry.isStale ? ". Data may be outdated." : "")"
+    }
+
+    private func placeText(_ quality: AirQuality) -> String? {
+        quality.locationLabel
     }
 
     // MARK: - System Small
@@ -67,10 +71,12 @@ struct AQIWidgetEntryView: View {
                 .foregroundStyle(.white.opacity(0.8))
                 .lineLimit(2)
 
-            Text(quality.station.name)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.5))
-                .lineLimit(1)
+            if let place = placeText(quality) {
+                Text(place)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .lineLimit(1)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -111,7 +117,7 @@ struct AQIWidgetEntryView: View {
                     WidgetRefreshButton()
                 }
 
-                Label(verdict, systemImage: quality.level.verdictIcon)
+                Label(verdict, systemImage: reading.severityLevel.verdictIcon)
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.8))
                     .lineLimit(2)
@@ -119,10 +125,12 @@ struct AQIWidgetEntryView: View {
                 Spacer(minLength: 0)
 
                 HStack {
-                    Text(quality.station.name)
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.5))
-                        .lineLimit(1)
+                    if let place = placeText(quality) {
+                        Text(place)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.5))
+                            .lineLimit(1)
+                    }
 
                     if entry.isStale {
                         Image(systemName: "exclamationmark.circle")
@@ -141,7 +149,7 @@ struct AQIWidgetEntryView: View {
 
     private func accessoryCircular(scale: AQIScale, reading: ScaledReading) -> some View {
         Gauge(value: gaugeFraction(scale: scale, value: reading.value)) {
-            Text(scale == .ukDAQI ? "DAQI" : "AQI")
+            Text(scale.compactName)
         } currentValueLabel: {
             Text("\(reading.value)")
                 .font(.system(.body, design: .rounded, weight: .medium))
@@ -153,12 +161,7 @@ struct AQIWidgetEntryView: View {
 
     /// How full the gauge is on the scale's own range.
     private func gaugeFraction(scale: AQIScale, value: Int) -> Double {
-        let top: Double = switch scale {
-        case .usEPA: 500
-        case .euCAQI: 125
-        case .ukDAQI: 10
-        }
-        return min(Double(value) / top, 1)
+        min(Double(value) / scale.gaugeTop, 1)
     }
 
     // MARK: - Accessory Rectangular
@@ -185,7 +188,7 @@ struct AQIWidgetEntryView: View {
     private func accessoryInline(scale: AQIScale, reading: ScaledReading) -> some View {
         HStack(spacing: 4) {
             Image(systemName: "aqi.medium")
-            Text("\(scale == .ukDAQI ? "DAQI" : "AQI") \(reading.value) · \(reading.band.name)")
+            Text("\(scale.compactName) \(reading.value) · \(reading.band.name)")
         }
         .accessibilityLabel("\(scale.accessibilityName): \(reading.value), \(reading.band.longName)")
     }

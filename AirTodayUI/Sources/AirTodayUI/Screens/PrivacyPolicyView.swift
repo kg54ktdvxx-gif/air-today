@@ -18,19 +18,22 @@ public struct PrivacyPolicyView: View {
                 policySection(
                     "Location",
                     "When you allow it, Air Today uses your location (on your iPhone, and on your Apple Watch " +
-                    "if you use the Watch app) to find the nearest air quality monitoring station. The " +
-                    "coordinates are sent directly to the World Air Quality Index (WAQI) API to fetch readings " +
-                    "and are not sent anywhere else.\n\n" +
+                    "if you use the Watch app) to show the air where you are. The coordinates are sent " +
+                    "directly to two services to fetch data: the World Air Quality Index (WAQI) for nearby " +
+                    "station measurements, and Open-Meteo for estimates, forecasts and weather (rounded to " +
+                    "about 1 km; Open-Meteo keeps request logs for up to 90 days). Your device " +
+                    "also asks Apple Maps for the name of your town, under Apple's privacy policy. The " +
+                    "coordinates are not sent anywhere else.\n\n" +
                     "If you don't allow location access, WAQI estimates your area from your internet " +
-                    "connection's IP address. The coordinates of your last check are kept on your device so " +
-                    "widgets and background updates can stay current."
+                    "connection's IP address, and Open-Meteo is asked about that area. The coordinates of " +
+                    "your last check are kept on your device so widgets and background updates can stay current."
                 )
 
                 policySection(
                     "Your Health Profile",
                     "The optional answers about asthma, ozone sensitivity and children are stored only on " +
                     "your device (and your paired Apple Watch). They tailor the advice the app shows and are " +
-                    "never sent to WAQI or any other server."
+                    "never sent to WAQI, Open-Meteo or any other server."
                 )
 
                 policySection(
@@ -46,10 +49,9 @@ public struct PrivacyPolicyView: View {
                 )
 
                 policySection(
-                    "Widgets, Complications & Live Activities",
-                    "Widgets, Watch complications and Live Activities read data stored on your device. When " +
-                    "that data is more than an hour old, they request a fresh reading from WAQI the same way " +
-                    "the app does."
+                    "Widgets & Complications",
+                    "Widgets and Watch complications read data stored on your device. When that data is more " +
+                    "than an hour old, they request a fresh reading the same way the app does."
                 )
 
                 policySection(
@@ -66,16 +68,17 @@ public struct PrivacyPolicyView: View {
 
                 policySection(
                     "Data Sources",
-                    "All air quality data is provided by the World Air Quality Index project (waqi.info) " +
-                    "and its network of monitoring stations worldwide. Air Today does not operate any " +
-                    "monitoring stations."
+                    "Station measurements come from the World Air Quality Index project (waqi.info) and its " +
+                    "network of monitoring stations worldwide. Estimates, forecasts and weather come from " +
+                    "Open-Meteo (open-meteo.com), whose air quality data comes from the Copernicus Atmosphere " +
+                    "Monitoring Service (CAMS). Air Today does not operate any monitoring stations or servers."
                 )
 
                 policySection(
                     "Analytics & Tracking",
                     "Air Today does not include any analytics SDKs, crash reporters, or advertising " +
-                    "frameworks. We do not track your usage, collect device identifiers, or share data " +
-                    "with third parties."
+                    "frameworks. We do not track your usage or collect device identifiers, and nothing is " +
+                    "shared beyond the requests described above."
                 )
 
                 policySection(

@@ -17,6 +17,9 @@ public enum AppConstants {
 
     public static let appGroupID = "group.com.airtoday.shared"
     public static let cacheTTL: TimeInterval = 60 * 60  // 1 hour
+    /// A reading that came back without the forecast (the model request failed) is
+    /// retried this much sooner than `cacheTTL`.
+    public static let incompleteReadingRetry: TimeInterval = 10 * 60
     public static let backgroundRefreshInterval: TimeInterval = 60 * 60
     public static let liveActivityStaleMinutes: TimeInterval = 45 * 60
     /// Moving further than this from where the current-location reading was
@@ -26,5 +29,9 @@ public enum AppConstants {
     /// (US consulate monitors from early 2025 still come back as "current").
     /// Older than this, a reading is treated as the station being offline.
     public static let maxReadingAge: TimeInterval = 24 * 60 * 60
+    /// A station supplies the headline only if it reported within this long…
+    public static let stationMaxAgeForHeadline: TimeInterval = 2 * 60 * 60
+    /// …and is this close (metres). Otherwise the model's estimate for the spot is used.
+    public static let stationMaxDistanceForHeadline: Double = 20_000
     public static let temperatureUnitKey = "temp_unit"
 }

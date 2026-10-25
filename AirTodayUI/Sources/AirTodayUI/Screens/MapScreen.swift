@@ -97,7 +97,7 @@ public struct MapScreen: View {
 
                 if let aqi = station.aqi, let level = station.level {
                     HStack(spacing: DS.spacingXS + 2) {
-                        Text("AQI \(aqi)")
+                        Text("US AQI \(aqi)")
                             .font(.headline)
                             .foregroundStyle(.white)
                         Text(level.shortLabel)

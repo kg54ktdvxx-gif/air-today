@@ -1,25 +1,30 @@
 import SwiftUI
 import AirTodayCore
 
-/// Hero section: verdict as primary readout, AQI number secondary.
+/// Hero section: the place, then the verdict as primary readout and the number secondary,
+/// then where the reading came from.
 public struct VerdictHero: View {
     let quality: AirQuality?
     let state: LoadingState
     let hasScrolled: Bool
+    /// The page's place: the town (or "My Location") or the saved city's name.
+    let placeName: String
+    let isCurrentLocation: Bool
     /// Metres from the device to the reporting station; nil for saved cities
     /// (their coordinate is the station itself) or without a location fix.
     let distanceFromUser: Double?
     let onRetry: () async -> Void
 
-    @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
-    private var temperatureUnit: TemperatureUnit = .celsius
     @AppStorage(AQIScale.storageKey, store: .shared)
     private var scale: AQIScale = .usEPA
+    /// Launches so far; the scale caption shows for the first few, then on tapping the number.
+    @AppStorage(DS.launchCountKey) private var launchCount = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
     @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
     @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
     @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
+    @State private var showingScale = false
 
     private var healthProfile: HealthProfile {
         HealthProfile(
@@ -30,23 +35,33 @@ public struct VerdictHero: View {
     }
 
     private static let guidanceService = ActivityGuidanceService()
+    /// Launches during which the scale caption shows under the number.
+    static let captionLaunches = 3
 
     public init(
         quality: AirQuality?,
         state: LoadingState,
         hasScrolled: Bool,
+        placeName: String,
+        isCurrentLocation: Bool,
         distanceFromUser: Double? = nil,
         onRetry: @escaping () async -> Void
     ) {
         self.quality = quality
         self.state = state
         self.hasScrolled = hasScrolled
+        self.placeName = placeName
+        self.isCurrentLocation = isCurrentLocation
         self.distanceFromUser = distanceFromUser
         self.onRetry = onRetry
     }
 
     public var body: some View {
         VStack(spacing: 0) {
+            placeHeader
+                // Clears the status bar and the top bar.
+                .padding(.top, 112)
+
             if let quality {
                 loadedContent(quality)
             } else if case .loading = state {
@@ -74,11 +89,45 @@ public struct VerdictHero: View {
         .padding(.horizontal, 40)
     }
 
+    // MARK: - Place
+
+    /// The place, large, so each page is clearly somewhere. Other cities show their
+    /// local time beside it.
+    private var placeHeader: some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 6) {
+                if isCurrentLocation {
+                    Image(systemName: "location.fill")
+                        .font(.system(.footnote, weight: .semibold))
+                        .accessibilityLabel("Your location:")
+                }
+                Text(placeName)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .font(.system(.title, design: .rounded, weight: .semibold))
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
+            if !isCurrentLocation, let offset = quality?.timeZoneOffset {
+                TimelineView(.everyMinute) { _ in
+                    Text(SunCalculator.localTime(timeZoneOffset: offset))
+                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                        .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
+                        .accessibilityLabel("Local time \(SunCalculator.localTime(timeZoneOffset: offset))")
+                }
+            }
+        }
+    }
+
     // MARK: - Loaded
 
     @ViewBuilder
     private func loadedContent(_ quality: AirQuality) -> some View {
-        let guidance = Self.guidanceService.guidance(for: quality, profile: healthProfile)
+        let guidance = Self.guidanceService.guidance(for: quality, scale: scale, profile: healthProfile)
         let (shownScale, reading) = scale.displayReading(for: quality)
 
         Spacer()
@@ -96,23 +145,33 @@ public struct VerdictHero: View {
                 .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
                 .shadow(color: .black.opacity(0.2), radius: 12, y: 6)
 
-            Text("\(reading.value)")
-                .font(.system(size: 96, weight: .thin, design: .rounded))
-                .monospacedDigit()
-                .contentTransition(.numericText(value: Double(reading.value)))
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
-                .shadow(color: .black.opacity(0.3), radius: 16, y: 8)
-                .padding(.top, 4)
-                .animation(DS.Motion.standard, value: reading.value)
-                .background { halo(reading.band.color) }
+            Button {
+                showingScale = true
+            } label: {
+                Text("\(reading.value)")
+                    .font(.system(size: 96, weight: .thin, design: .rounded))
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(reading.value)))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
+                    .shadow(color: .black.opacity(0.3), radius: 16, y: 8)
+                    .animation(DS.Motion.standard, value: reading.value)
+                    .background { halo(reading.band.color) }
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+            .accessibilityLabel("\(shownScale.accessibilityName): \(reading.value), \(reading.band.longName). Lower is better.")
+            .accessibilityHint("Explains the scale")
 
-            // Without the standard and direction, "82" means nothing to most people.
-            Text(shownScale.caption)
-                .font(.system(.caption, design: .rounded, weight: .medium))
-                .foregroundStyle(.white.opacity(0.65))
-                .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
-                .padding(.top, -6)
+            // Without the standard and direction, "82" means nothing to newcomers.
+            if launchCount <= Self.captionLaunches {
+                Text(shownScale.caption)
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
+                    .padding(.top, -6)
+                    .accessibilityHidden(true)
+            }
 
             HStack(spacing: 8) {
                 Text(reading.band.name)
@@ -125,26 +184,20 @@ public struct VerdictHero: View {
             .foregroundStyle(.white.opacity(0.9))
             .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
             .padding(.top, 4)
-
-            conditionsCapsule(quality)
-                .padding(.top, 40)
+            .accessibilityElement(children: .combine)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(guidance.verdict). \(shownScale.accessibilityName): \(reading.value), \(reading.band.longName). Lower is better.")
+        .sheet(isPresented: $showingScale) {
+            ScaleExplainerSheet(scale: shownScale, reading: reading)
+        }
 
         Spacer()
 
-        // === ZONE 2: Location + swipe hint (bottom) ===
+        // === ZONE 2: Source + scroll hint (bottom) ===
         VStack(spacing: 6) {
-            Text(quality.station.name)
-                .font(.system(.subheadline, design: .rounded, weight: .medium))
-                .foregroundStyle(.white.opacity(0.8))
-                .multilineTextAlignment(.center)
-                .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
-
-            Text(Self.freshnessText(measuredAt: quality.timestamp, distance: distanceFromUser))
+            Text(SourceDescription.text(for: quality, distance: distanceFromUser, scale: scale))
                 .font(.system(.footnote, design: .rounded))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
                 .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
 
             Image(systemName: "chevron.compact.down")
@@ -177,75 +230,6 @@ public struct VerdictHero: View {
             .animation(DS.Motion.atmospheric, value: color)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-    }
-
-    /// The station's local time and temperature in one quiet capsule.
-    @ViewBuilder
-    private func conditionsCapsule(_ quality: AirQuality) -> some View {
-        let items = Self.conditionItems(quality, temperatureUnit: temperatureUnit)
-        if !items.isEmpty {
-            HStack(spacing: DS.spacingMD) {
-                ForEach(items, id: \.label) { item in
-                    HStack(spacing: 5) {
-                        Image(systemName: item.icon)
-                            .font(.footnote)
-                            .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                        Text(item.value)
-                    }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(item.label): \(item.value)")
-                }
-            }
-            .font(.system(.subheadline, design: .rounded, weight: .semibold))
-            .foregroundStyle(.white.opacity(DS.opacityPrimary))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(.black.opacity(0.28), in: Capsule())
-            .overlay(Capsule().strokeBorder(.white.opacity(0.12)))
-        }
-    }
-
-    private static func conditionItems(
-        _ quality: AirQuality,
-        temperatureUnit: TemperatureUnit
-    ) -> [(icon: String, value: String, label: String)] {
-        var items: [(icon: String, value: String, label: String)] = []
-
-        if let tzOffset = quality.timeZoneOffset {
-            items.append(("clock.fill", SunCalculator.localTime(timeZoneOffset: tzOffset), "Local time"))
-        }
-        if let temp = quality.weather.temperature {
-            items.append(("thermometer.medium", temperatureUnit.format(celsius: temp), "Temperature"))
-        }
-        return items
-    }
-
-    /// "Updated 12 min ago · 2.4 km away" — how fresh and how local the reading is.
-    private static func freshnessText(measuredAt: Date, distance: Double?) -> String {
-        let updated = updatedText(measuredAt)
-        guard let distance else { return updated }
-        // Station coordinates are approximate; "0 m" or "40 m" claims false precision.
-        guard distance >= 100 else { return "\(updated) · under 100 m away" }
-        // Short distances to the nearest 10 m ("660 m"), longer ones to a tenth ("2.4 km").
-        let isShort = distance < 1_000
-        let metres = isShort ? (distance / 10).rounded() * 10 : distance
-        let formatted = Measurement(value: metres, unit: UnitLength.meters).formatted(
-            .measurement(
-                width: .abbreviated,
-                usage: .road,
-                numberFormatStyle: .number.precision(.fractionLength(isShort ? 0...0 : 0...1))
-            )
-        )
-        return "\(updated) · \(formatted) away"
-    }
-
-    /// `date` is when the station measured, not when the app fetched.
-    private static func updatedText(_ date: Date) -> String {
-        let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
-        if minutes < 1 { return "Updated just now" }
-        if minutes < 60 { return "Updated \(minutes) min ago" }
-        let hours = minutes / 60
-        return hours == 1 ? "Updated 1 hr ago" : "Updated \(hours) hr ago"
     }
 
     // MARK: - Error

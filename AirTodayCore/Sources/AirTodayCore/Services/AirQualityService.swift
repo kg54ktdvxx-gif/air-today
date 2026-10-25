@@ -154,13 +154,8 @@ public struct AirQualityService: AirQualityServiceProtocol {
 
     private func mapToAirQuality(_ data: WAQIFeedData) -> AirQuality {
         let timeZoneOffset = Self.parseTimeZoneOffset(data.time.tz)
-        // Forecast days are station-local dates, so "today" must be the station's today.
-        let stationToday = AirQuality.todayDateString(timeZoneOffset: timeZoneOffset)
-
         let pollutants = parsePollutants(from: data.iaqi)
         let weather = parseWeather(from: data.iaqi)
-        let forecast = Self.parseForecast(from: data.forecast, today: stationToday)
-        let uviForecast = Self.parseUVIForecast(from: data.forecast, today: stationToday)
         let dominantPollutant = Pollutant.Kind(rawValue: data.dominentpol ?? "")
         let timestamp = Self.parseMeasurementTime(data.time, timeZoneOffset: timeZoneOffset)
 
@@ -184,8 +179,7 @@ public struct AirQualityService: AirQualityServiceProtocol {
             pollutants: pollutants,
             weather: weather,
             station: station,
-            forecast: forecast,
-            uviForecast: uviForecast,
+            source: .station,
             timestamp: timestamp,
             attribution: attribution,
             timeZoneOffset: timeZoneOffset
@@ -215,33 +209,6 @@ public struct AirQualityService: AirQualityServiceProtocol {
         )
     }
 
-    /// `today` is the station-local date (yyyy-MM-dd); earlier days are dropped.
-    static func parseForecast(from forecast: WAQIForecast?, today: String) -> [DailyForecast] {
-        guard let daily = forecast?.daily else { return [] }
-        var results: [DailyForecast] = []
-
-        let pollutantMap: [(String, Pollutant.Kind)] = [
-            ("pm25", .pm25), ("pm10", .pm10), ("o3", .o3),
-        ]
-
-        for (key, kind) in pollutantMap {
-            guard let entries = daily[key] else { continue }
-            for entry in entries {
-                // Filter out past dates — WAQI includes historical forecast days.
-                guard entry.day >= today else { continue }
-                results.append(DailyForecast(
-                    pollutant: kind,
-                    day: entry.day,
-                    avg: entry.avg,
-                    min: entry.min,
-                    max: entry.max
-                ))
-            }
-        }
-
-        return results
-    }
-
     /// Parse WAQI timezone string like "+05:30" or "-08:00" into seconds from GMT.
     static func parseTimeZoneOffset(_ tz: String?) -> Int? {
         guard let tz, !tz.isEmpty else { return nil }
@@ -252,17 +219,6 @@ public struct AirQualityService: AirQualityServiceProtocol {
         guard let hours = Int(parts.first ?? "") else { return nil }
         let minutes = parts.count > 1 ? (Int(parts[1]) ?? 0) : 0
         return sign * (hours * 3600 + minutes * 60)
-    }
-
-    /// `today` is the station-local date (yyyy-MM-dd); earlier days are dropped.
-    static func parseUVIForecast(from forecast: WAQIForecast?, today: String) -> [UVIForecastPoint] {
-        guard let daily = forecast?.daily,
-              let entries = daily["uvi"]
-        else { return [] }
-
-        return entries
-            .filter { $0.day >= today }
-            .map { UVIForecastPoint(day: $0.day, avg: $0.avg, min: $0.min, max: $0.max) }
     }
 
     /// WAQI's `v` is the station's wall-clock time encoded as if it were UTC
@@ -281,7 +237,7 @@ public struct AirQualityService: AirQualityServiceProtocol {
 
 // MARK: - Errors
 
-public enum AirQualityError: LocalizedError, Sendable {
+public enum AirQualityError: LocalizedError, Sendable, Equatable {
     case apiError(String)
     case stationOffline
     case noData
@@ -331,7 +287,6 @@ struct WAQIFeedData: Decodable {
     let city: WAQICity?
     let iaqi: [String: WAQIValue]?
     let time: WAQITime
-    let forecast: WAQIForecast?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -341,7 +296,6 @@ struct WAQIFeedData: Decodable {
         city = try container.decodeIfPresent(WAQICity.self, forKey: .city)
         iaqi = try container.decodeIfPresent([String: WAQIValue].self, forKey: .iaqi)
         time = try container.decode(WAQITime.self, forKey: .time)
-        forecast = try container.decodeIfPresent(WAQIForecast.self, forKey: .forecast)
 
         // aqi can be Int or "-" string when station offline
         if let intVal = try? container.decode(Int.self, forKey: .aqi) {
@@ -352,7 +306,7 @@ struct WAQIFeedData: Decodable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case aqi, idx, dominentpol, attributions, city, iaqi, time, forecast
+        case aqi, idx, dominentpol, attributions, city, iaqi, time
     }
 }
 
@@ -376,17 +330,6 @@ struct WAQITime: Decodable {
 struct WAQIAttribution: Decodable {
     let url: String?
     let name: String
-}
-
-struct WAQIForecast: Decodable {
-    let daily: [String: [WAQIForecastEntry]]?
-}
-
-struct WAQIForecastEntry: Decodable {
-    let avg: Int
-    let day: String
-    let max: Int
-    let min: Int
 }
 
 // MARK: - Search Response

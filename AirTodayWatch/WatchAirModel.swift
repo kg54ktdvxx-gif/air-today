@@ -16,7 +16,7 @@ final class WatchAirModel {
     private(set) var errorMessage: String?
 
     let locationService = LocationService()
-    private let service = AirQualityService(token: AppConstants.waqiToken)
+    private let reader = AirReadingService()
 
     init() {
         quality = SharedDataStore.load()
@@ -26,9 +26,9 @@ final class WatchAirModel {
         WatchSync.shared.activate()
     }
 
+    /// The store holds whichever reading was fetched last, here or on the iPhone.
     func reloadFromStore() {
-        if let stored = SharedDataStore.load(),
-           quality.map({ stored.timestamp >= $0.timestamp }) ?? true {
+        if let stored = SharedDataStore.load() {
             quality = stored
         }
     }
@@ -44,17 +44,33 @@ final class WatchAirModel {
 
         do {
             if let here = locationService.coordinate.map(Coordinate.init) {
-                let fresh = try await service.fetchCurrent(latitude: here.latitude, longitude: here.longitude)
+                var fresh = try await reader.reading(at: here)
+                fresh.placeName = SharedDataStore.cachedPlaceName(near: here)
                 SharedDataStore.save(fresh, queryCoordinate: here)
                 quality = fresh
+                if fresh.placeName == nil {
+                    Task { await fillInPlaceName(for: here) }
+                }
             } else {
                 // No fix on the Watch: use where the iPhone last checked (or WAQI's IP lookup).
-                quality = try await CurrentAirRefresher.refresh(service: service)
+                quality = try await CurrentAirRefresher.refresh(reader: reader)
             }
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// The town name arrives after the reading; it doesn't hold the reading up.
+    private func fillInPlaceName(for coordinate: Coordinate) async {
+        guard let name = await PlaceNameResolver.name(for: coordinate),
+              var stored = SharedDataStore.load(),
+              SharedDataStore.queryCoordinate() == coordinate
+        else { return }
+        stored.placeName = name
+        SharedDataStore.save(stored, queryCoordinate: coordinate, fetchedAt: SharedDataStore.lastUpdated() ?? Date())
+        quality = stored
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     func requestLocationIfAllowed() {

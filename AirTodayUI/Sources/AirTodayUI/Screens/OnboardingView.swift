@@ -2,7 +2,7 @@ import SwiftUI
 import AirTodayCore
 
 /// First-launch onboarding — what the app does, how it looks when the air is bad,
-/// the optional health profile, then location.
+/// the optional health profile, location, then alerts.
 public struct OnboardingView: View {
     let locationService: LocationService
     let onComplete: () -> Void
@@ -13,6 +13,17 @@ public struct OnboardingView: View {
     @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
     @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
     @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
+    @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
+    @AppStorage(NotificationPreferences.Key.alertsOffered, store: .shared) private var alertsOffered = false
+
+    /// From the health answers: those with a reason to be careful hear sooner.
+    private var suggestedLevel: AQILevel {
+        NotificationPreferences.suggestedThreshold(for: HealthProfile(
+            hasRespiratoryCondition: hasRespiratoryCondition,
+            isOzoneSensitive: isOzoneSensitive,
+            hasChildren: hasChildren
+        ))
+    }
 
     public init(locationService: LocationService, onComplete: @escaping () -> Void) {
         self.locationService = locationService
@@ -20,7 +31,7 @@ public struct OnboardingView: View {
     }
 
     enum Step: Int, CaseIterable {
-        case welcome, atmosphere, you, location
+        case welcome, atmosphere, you, location, alerts
 
         var label: String {
             switch self {
@@ -28,6 +39,7 @@ public struct OnboardingView: View {
             case .atmosphere: "Atmosphere"
             case .you: "You"
             case .location: "Location"
+            case .alerts: "Alerts"
             }
         }
 
@@ -47,6 +59,7 @@ public struct OnboardingView: View {
                     atmospherePage.tag(Step.atmosphere)
                     youPage.tag(Step.you)
                     locationPage.tag(Step.location)
+                    alertsPage.tag(Step.alerts)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .shadow(color: .black.opacity(0.45), radius: 6, y: 2)
@@ -203,7 +216,7 @@ public struct OnboardingView: View {
                 .font(.system(.title, design: .rounded, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Air Today uses your location to find the nearest monitoring station. Your coordinates are only sent to the World Air Quality Index to fetch readings — never stored on a server or shared.")
+            Text("Air Today uses your location to show the air where you are. Your coordinates are sent only to fetch readings and forecasts (World Air Quality Index, Open-Meteo) and to Apple Maps for your town's name. Air Today has no server of its own and keeps no record of where you've been.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(DS.opacityPrimary))
                 .multilineTextAlignment(.center)
@@ -213,10 +226,54 @@ public struct OnboardingView: View {
             VStack(spacing: DS.spacingMD) {
                 nextButton("Enable Location") {
                     locationService.requestPermission()
-                    onComplete()
+                    advance(to: .alerts)
                 }
 
                 Button("Skip for Now") {
+                    advance(to: .alerts)
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.white.opacity(DS.opacityPrimary))
+            }
+        }
+        .padding(DS.spacingXXL)
+    }
+
+    // MARK: - Alerts
+
+    private var alertsPage: some View {
+        VStack(spacing: DS.spacingXL + 4) {
+            Spacer()
+
+            Image(systemName: "bell.badge.fill")
+                .font(.system(size: 64))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.orange, .white)
+                .accessibilityHidden(true)
+
+            Text("Get warned when air gets worse")
+                .font(.system(.title, design: .rounded, weight: .bold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+
+            Text("Air Today checks in the background and tells you when the air reaches \(scale.bandName(for: suggestedLevel)) on the \(scale.shortName), wherever you are and in the places you save. You can change the level or turn it off in Settings.")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(DS.opacityPrimary))
+                .multilineTextAlignment(.center)
+
+            Spacer()
+
+            VStack(spacing: DS.spacingMD) {
+                nextButton("Turn On Alerts") {
+                    let level = suggestedLevel
+                    Task {
+                        await NotificationPreferences.enableThresholdAlerts(at: level)
+                        onComplete()
+                    }
+                }
+
+                Button("Not Now") {
+                    alertsOffered = true
                     onComplete()
                 }
                 .font(.subheadline.weight(.medium))

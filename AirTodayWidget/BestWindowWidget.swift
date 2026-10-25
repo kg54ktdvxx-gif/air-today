@@ -14,7 +14,7 @@ struct BestWindowWidget: Widget {
                 }
         }
         .configurationDisplayName("Best Window")
-        .description("When the air should be cleanest today.")
+        .description("When the air should be cleanest, from the hourly forecast.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }
@@ -24,7 +24,7 @@ struct BestWindowView: View {
     @Environment(\.widgetFamily) private var family
 
     private var window: BestWindow? {
-        entry.quality.flatMap { BestWindow.today(for: $0, now: entry.date) }
+        entry.quality.flatMap { BestWindow.next(for: $0, scale: entry.scale, now: entry.date) }
     }
 
     var body: some View {
@@ -36,6 +36,8 @@ struct BestWindowView: View {
                 case .accessoryInline: inline(window)
                 default: small(window)
                 }
+            } else if entry.quality != nil {
+                noForecast
             } else {
                 WidgetNoDataView(family: family)
             }
@@ -43,8 +45,32 @@ struct BestWindowView: View {
         .widgetURL(URL(string: "airtoday://open"))
     }
 
+    /// "Best time outside today"
+    private func title(_ window: BestWindow) -> String {
+        "Best time outside \(window.dayName(now: entry.date))"
+    }
+
+    /// The window's level in the chosen scale's words.
+    private func levelName(_ window: BestWindow) -> String {
+        entry.scale == .usEPA ? window.level.shortLabel : entry.scale.bandName(for: window.level)
+    }
+
     private func spoken(_ window: BestWindow) -> String {
-        "Best time outside today: \(window.headline). \(window.detail) Expected \(window.level.label)."
+        "\(title(window)): \(window.headline). \(window.detail) Expected \(levelName(window))."
+    }
+
+    /// There's a reading but no hourly forecast to plan from.
+    private var noForecast: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label("Best time outside", systemImage: "clock.badge.checkmark")
+                .font(.caption.weight(.medium))
+            Text("No forecast right now")
+                .font(.caption2)
+                .opacity(0.75)
+        }
+        .foregroundStyle(family == .systemSmall || family == .systemMedium ? .white : .primary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private func small(_ window: BestWindow) -> some View {
@@ -56,7 +82,7 @@ struct BestWindowView: View {
                 Spacer()
                 WidgetRefreshButton()
             }
-            Text("Best time outside")
+            Text(title(window))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.white.opacity(0.8))
             Text(window.headline)
@@ -77,7 +103,7 @@ struct BestWindowView: View {
     private func medium(_ window: BestWindow) -> some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Best time outside")
+                Text(title(window))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.white.opacity(0.8))
                 Text(window.headline)
@@ -92,10 +118,10 @@ struct BestWindowView: View {
             VStack(alignment: .trailing, spacing: 6) {
                 WidgetRefreshButton()
                 Spacer(minLength: 0)
-                Text("Today")
+                Text(window.dayName(now: entry.date).capitalized)
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.6))
-                Text(window.level.shortLabel)
+                Text(levelName(window))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(window.level.color)
             }
@@ -106,7 +132,7 @@ struct BestWindowView: View {
 
     private func rectangular(_ window: BestWindow) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Label("Best time outside", systemImage: "clock.badge.checkmark")
+            Label(title(window), systemImage: "clock.badge.checkmark")
                 .font(.caption2)
             Text(window.headline)
                 .font(.headline)

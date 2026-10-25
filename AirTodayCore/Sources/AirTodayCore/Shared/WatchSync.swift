@@ -64,7 +64,9 @@ public final class WatchSync: NSObject, WCSessionDelegate, @unchecked Sendable {
     // MARK: - Watch ← iPhone
 
     /// Stores a received context. The iPhone's reading only replaces the Watch's own
-    /// when it's newer, so a fresher reading fetched on the Watch isn't overwritten.
+    /// when it was fetched later, so a fresher reading fetched on the Watch isn't
+    /// overwritten. Fetch time, not measurement time: a station measured at 13:20 and
+    /// fetched at 14:05 is newer news than the model's 14:00 hour fetched at 13:50.
     static func apply(_ context: [String: Any], defaults: UserDefaults = .shared) {
         for key in mirroredBoolKeys {
             if let value = context[key] as? Bool { defaults.set(value, forKey: key) }
@@ -76,11 +78,15 @@ public final class WatchSync: NSObject, WCSessionDelegate, @unchecked Sendable {
         guard let data = context[ContextKey.reading] as? Data,
               let reading = try? JSONDecoder().decode(AirQuality.self, from: data)
         else { return }
-        if let local = SharedDataStore.load(), local.timestamp >= reading.timestamp { return }
+        let fetchedAt = (context[ContextKey.fetchedAt] as? TimeInterval).map(Date.init(timeIntervalSince1970:))
+        if SharedDataStore.load() != nil, let localFetch = SharedDataStore.lastUpdated() {
+            // An iPhone on an older version doesn't send its fetch time; its reading's own time is the best guess.
+            if localFetch >= (fetchedAt ?? reading.timestamp) { return }
+        }
 
         let coordinate = (context[ContextKey.queryCoordinate] as? Data)
             .flatMap { try? JSONDecoder().decode(Coordinate.self, from: $0) }
-        SharedDataStore.save(reading, queryCoordinate: coordinate)
+        SharedDataStore.save(reading, queryCoordinate: coordinate, fetchedAt: fetchedAt ?? Date())
     }
 
     // MARK: - WCSessionDelegate

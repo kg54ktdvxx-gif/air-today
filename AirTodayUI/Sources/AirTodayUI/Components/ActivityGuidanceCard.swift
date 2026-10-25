@@ -1,86 +1,30 @@
 import SwiftUI
 import AirTodayCore
 
-/// Expandable activity guidance card showing per-activity recommendations.
+/// Every activity's recommendation, with today's outlook and the advice's basis as a footer.
+/// The verdict itself is the hero's, so it isn't repeated here.
 public struct ActivityGuidanceCard: View {
     let guidance: ActivityGuidance
-    let level: AQILevel
-    @State private var isExpanded = false
+    /// The current band's colour, along the card's leading edge.
+    let accent: Color
+    let scale: AQIScale
+    @State private var showingAbout = false
 
-    public init(guidance: ActivityGuidance, level: AQILevel) {
+    public init(guidance: ActivityGuidance, accent: Color, scale: AQIScale) {
         self.guidance = guidance
-        self.level = level
+        self.accent = accent
+        self.scale = scale
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(DS.Motion.standard) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                header
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(guidance.verdict). \(guidance.peakWarning ?? "")")
-            .accessibilityHint(isExpanded ? "Double tap to collapse activity details" : "Double tap to expand activity details")
-            .accessibilityAddTraits(.isButton)
-
-            if isExpanded {
-                expandedContent
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .background { DS.cardBackground }
-        .overlay {
-            // The level colour runs along the card's leading edge and fades out.
-            RoundedRectangle(cornerRadius: DS.cornerRadius)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [level.color.opacity(0.75), level.color.opacity(0)],
-                        startPoint: .leading,
-                        endPoint: UnitPoint(x: 0.35, y: 0.5)
-                    ),
-                    lineWidth: 1.5
-                )
-                .animation(DS.Motion.atmospheric, value: level)
-                .allowsHitTesting(false)
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(spacing: DS.spacingMD) {
-            Image(systemName: guidance.verdictIcon)
-                .font(.title2)
-                .foregroundStyle(level.color)
-                .frame(width: DS.iconMD + 4)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(guidance.verdict)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white.opacity(DS.opacityPrimary))
-
-                if let warning = guidance.peakWarning {
-                    Text(warning)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                }
-            }
-
-            Spacer()
-        }
-        .padding(DS.spacingLG)
-    }
-
-    // MARK: - Expanded
-
-    private var expandedContent: some View {
-        VStack(spacing: 0) {
-            DS.divider
+            Text("Activities")
+                .font(.headline)
+                .foregroundStyle(.white)
                 .padding(.horizontal, DS.spacingLG)
+                .padding(.top, DS.cardHeaderTop)
+                .padding(.bottom, DS.spacingXS)
+                .accessibilityAddTraits(.isHeader)
 
             ForEach(guidance.activities) { rec in
                 activityRow(rec)
@@ -90,8 +34,27 @@ public struct ActivityGuidanceCard: View {
                         .padding(.horizontal, DS.spacingLG)
                 }
             }
+
+            footer
         }
-        .padding(.bottom, DS.spacingSM)
+        .background { DS.cardBackground }
+        .overlay {
+            // The band colour runs along the card's leading edge and fades out.
+            RoundedRectangle(cornerRadius: DS.cornerRadius)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [accent.opacity(0.75), accent.opacity(0)],
+                        startPoint: .leading,
+                        endPoint: UnitPoint(x: 0.35, y: 0.5)
+                    ),
+                    lineWidth: 1.5
+                )
+                .animation(DS.Motion.atmospheric, value: accent)
+                .allowsHitTesting(false)
+        }
+        .sheet(isPresented: $showingAbout) {
+            AdviceInfoSheet(scale: scale)
+        }
     }
 
     private func activityRow(_ rec: ActivityRec) -> some View {
@@ -100,6 +63,7 @@ public struct ActivityGuidanceCard: View {
                 .font(.body)
                 .foregroundStyle(.white.opacity(DS.opacitySecondary))
                 .frame(width: DS.iconMD)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: DS.spacingXS) {
                 HStack(spacing: DS.spacingXS + 2) {
@@ -130,6 +94,36 @@ public struct ActivityGuidanceCard: View {
         }
         .padding(.horizontal, DS.spacingLG)
         .padding(.vertical, DS.spacingSM)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var footer: some View {
+        VStack(alignment: .leading, spacing: DS.spacingSM) {
+            DS.divider
+
+            if let outlook = guidance.peakWarning {
+                Label(outlook, systemImage: "clock")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white.opacity(DS.opacityPrimary))
+            }
+
+            Button {
+                showingAbout = true
+            } label: {
+                HStack(spacing: DS.spacingXS) {
+                    Text("General guidance, not medical advice.")
+                    Text("About this advice")
+                        .underline()
+                }
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(DS.opacityTertiary))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("General guidance, not medical advice. About this advice")
+        }
+        .padding(.horizontal, DS.spacingLG)
+        .padding(.bottom, DS.spacingMD)
+        .padding(.top, DS.spacingXS)
     }
 
     private func recColor(_ rec: Rec) -> Color {

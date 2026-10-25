@@ -9,10 +9,11 @@ struct CheckAirQualityIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let quality = await CurrentAirRefresher.latest() else { throw IntentError.noReading }
 
-        let verdict = ActivityGuidanceService().guidance(for: quality, profile: HealthProfile.load()).verdict
-        let shown = AQIScale.current.displayReading(for: quality)
-        let place = quality.station.name.components(separatedBy: ",").first ?? quality.station.name
-        return .result(dialog: "\(verdict). \(shown.scale.shortName) \(shown.reading.value), \(shown.reading.band.longName), at \(place).")
+        let scale = AQIScale.current
+        let verdict = ActivityGuidanceService().guidance(for: quality, scale: scale, profile: HealthProfile.load()).verdict
+        let shown = scale.displayReading(for: quality)
+        let place = quality.locationLabel.map { " in \($0)" } ?? ""
+        return .result(dialog: "\(verdict). \(shown.scale.shortName) \(shown.reading.value), \(shown.reading.band.longName)\(place).")
     }
 }
 
@@ -31,7 +32,7 @@ struct CheckActivityIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let quality = await CurrentAirRefresher.latest() else { throw IntentError.noReading }
 
-        let guidance = ActivityGuidanceService().guidance(for: quality, profile: HealthProfile.load())
+        let guidance = ActivityGuidanceService().guidance(for: quality, scale: AQIScale.current, profile: HealthProfile.load())
         guard let rec = guidance.activities.first(where: { $0.activity == activity.activity }) else {
             throw IntentError.noReading
         }

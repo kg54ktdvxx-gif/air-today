@@ -1,21 +1,27 @@
 import Foundation
 
-/// Pure computation — no network. Takes AirQuality + Date (+ health profile) → ActivityGuidance.
+/// Pure computation — no network. Takes AirQuality + scale + Date (+ health profile) → ActivityGuidance.
+///
+/// Everything keys off the reading's position on the shared severity ladder, so the
+/// advice matches whichever scale is shown. Thresholds are written in US EPA AQI
+/// numbers (where they came from) and converted to ladder positions.
 public struct ActivityGuidanceService: Sendable {
     public init() {}
 
     public func guidance(
         for quality: AirQuality,
+        scale: AQIScale = .usEPA,
         at date: Date = Date(),
         profile: HealthProfile = .none
     ) -> ActivityGuidance {
-        let aqi = quality.aqi
-        let level = quality.level
+        let reading = scale.displayReading(for: quality).reading
+        let severity = reading.severity
+        let level = reading.severityLevel
         let weather = quality.weather
-        let dominant = quality.dominantPollutant
+        let dominant = reading.dominantPollutant
 
-        // Use station timezone for hour extraction so guidance is correct
-        // even when the device is in a different timezone than the station.
+        // Use the place's timezone for hour extraction so guidance is correct
+        // even when the device is in a different timezone.
         var calendar = Calendar.current
         if let offset = quality.timeZoneOffset,
            let tz = TimeZone(secondsFromGMT: offset) {
@@ -24,16 +30,16 @@ public struct ActivityGuidanceService: Sendable {
         let hour = calendar.component(.hour, from: date)
 
         let ozoneMatters = profile.isOzoneSensitive && Self.ozoneIsElevated(in: quality)
+        let window = BestWindow.next(for: quality, scale: scale, now: date)
 
         let verdict = buildVerdict(
             level: level, weather: weather, dominant: dominant, hour: hour,
             profile: profile, ozoneMatters: ozoneMatters
         )
-        let peakWarning = buildPeakWarning(dominant: dominant, hour: hour, aqi: aqi)
         let activities = Activity.allCases.map { activity in
             buildRec(
-                activity: activity, aqi: aqi, level: level, weather: weather, dominant: dominant,
-                profile: profile, ozoneMatters: ozoneMatters
+                activity: activity, severity: severity, reading: reading, weather: weather,
+                profile: profile, ozoneMatters: ozoneMatters, window: window
             )
         }
 
@@ -41,7 +47,7 @@ public struct ActivityGuidanceService: Sendable {
             verdict: verdict,
             verdictIcon: level.verdictIcon,
             activities: activities,
-            peakWarning: peakWarning
+            peakWarning: Self.outlook(for: quality, scale: scale, from: reading, now: date)
         )
     }
 
@@ -126,41 +132,64 @@ public struct ActivityGuidanceService: Sendable {
         }
     }
 
-    // MARK: - Peak Warning
+    // MARK: - Outlook
 
-    private func buildPeakWarning(dominant: Pollutant.Kind?, hour: Int, aqi: Int) -> String? {
-        if dominant == .o3, hour < 15 {
-            return "Ozone peaks 3–7 PM, exercise in the morning"
+    /// How the rest of today's daylight compares with now, from the hourly forecast:
+    /// "Worse from 3 PM — Poor" or "Clearing from 2 PM — Good". Nil without a
+    /// forecast, or when the level holds.
+    ///
+    /// Compared with the model's own current hour, not the headline: a station and
+    /// the model can disagree by a band at the same moment, and that isn't a change.
+    static func outlook(for quality: AirQuality, scale: AQIScale, from reading: ScaledReading, now: Date) -> String? {
+        guard let model = quality.model else { return nil }
+        let calendar = model.calendar
+        let series = reading.scale.hourlySeries(for: quality, now: now)
+        guard let current = series.first else { return nil }
+        func level(_ value: Int) -> AQILevel { Severity.level(at: Severity.position(of: value, on: reading.scale)) }
+
+        let currentLevel = level(current.value)
+        let upcoming = series.dropFirst().filter {
+            calendar.isDate($0.time, inSameDayAs: now)
+                && BestWindow.daylight.contains(calendar.component(.hour, from: $0.time))
         }
-        if dominant == .pm25, aqi > 80, hour < 12 {
-            return "PM2.5 may improve by afternoon"
-        }
-        return nil
+        guard let change = upcoming.first(where: { level($0.value) != currentLevel }) else { return nil }
+
+        let time = Self.hourText(change.time, calendar: calendar)
+        let band = reading.scale.band(forValue: change.value).name
+        return level(change.value) > currentLevel
+            ? "Worse from \(time) — \(band)"
+            : "Clearing from \(time) — \(band)"
+    }
+
+    /// "3 PM" in `calendar`'s time zone.
+    public static func hourText(_ date: Date, calendar: Calendar) -> String {
+        let h = calendar.component(.hour, from: date)
+        return "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? "AM" : "PM")"
     }
 
     // MARK: - Per-Activity Recommendation
 
     private func buildRec(
         activity: Activity,
-        aqi: Int,
-        level: AQILevel,
+        severity: Double,
+        reading: ScaledReading,
         weather: Weather,
-        dominant: Pollutant.Kind?,
         profile: HealthProfile,
-        ozoneMatters: Bool
+        ozoneMatters: Bool,
+        window: BestWindow?
     ) -> ActivityRec {
-        let baseRec = Self.recommendation(aqi: aqi, threshold: Self.baseThreshold(for: activity))
+        let base = Self.baseThreshold(for: activity)
+        let baseRec = Self.recommendation(severity: severity, threshold: base)
         let shift = Self.thresholdShift(for: activity, profile: profile, ozoneMatters: ozoneMatters)
-        let rec = Self.recommendation(aqi: aqi, threshold: Self.baseThreshold(for: activity).lowered(by: shift))
+        let rec = Self.recommendation(severity: severity, threshold: base.lowered(by: shift))
 
         var reason: String
         switch rec {
         case .great: reason = "Low pollution"
         case .ok: reason = "Moderate air quality"
-        case .caution: reason = level.label
-        case .avoid: reason = "AQI too high"
+        case .caution: reason = reading.band.longName
+        case .avoid: reason = "Too polluted"
         }
-        var bestWindow: String?
 
         // Say so when the profile made the advice stricter than it is for everyone else.
         if rec > baseRec {
@@ -182,13 +211,11 @@ public struct ActivityGuidanceService: Sendable {
             reason += ", high winds"
         }
 
-        // Best window
-        if rec == .caution || rec == .ok {
-            if dominant == .o3 {
-                bestWindow = "Before 10 AM"
-            } else if dominant == .pm25 {
-                bestWindow = "Afternoon may be better"
-            }
+        // When it isn't great now, say when it'll be best — if some of the day is
+        // clearly better than the rest.
+        var bestWindow: String?
+        if rec != .great, let window, window.level < window.dayWorstLevel {
+            bestWindow = "Best around \(window.headline)"
         }
 
         return ActivityRec(
@@ -199,52 +226,59 @@ public struct ActivityGuidanceService: Sendable {
         )
     }
 
-    private struct Threshold {
-        let great: Int
-        let ok: Int
-        let caution: Int
+    /// Boundaries as ladder positions.
+    struct Threshold {
+        let great: Double
+        let ok: Double
+        let caution: Double
 
-        /// Moves every boundary down so warnings arrive at lower AQI. Floors at
-        /// 10 so even a heavily shifted profile still has a "great" band.
-        func lowered(by shift: Int) -> Threshold {
-            Threshold(
-                great: max(10, great - shift),
-                ok: max(10, ok - shift),
-                caution: max(10, caution - shift)
-            )
+        /// From US EPA AQI numbers.
+        init(usAQI great: Int, _ ok: Int, _ caution: Int) {
+            self.great = Severity.position(usAQI: great)
+            self.ok = Severity.position(usAQI: ok)
+            self.caution = Severity.position(usAQI: caution)
+        }
+
+        private init(great: Double, ok: Double, caution: Double) {
+            self.great = great
+            self.ok = ok
+            self.caution = caution
+        }
+
+        /// Moves every boundary down so warnings arrive sooner. Floors at 0.2 so even
+        /// a heavily shifted profile still has a "great" band.
+        func lowered(by shift: Double) -> Threshold {
+            Threshold(great: max(0.2, great - shift), ok: max(0.2, ok - shift), caution: max(0.2, caution - shift))
         }
     }
 
-    private static func recommendation(aqi: Int, threshold: Threshold) -> Rec {
-        if aqi <= threshold.great { return .great }
-        if aqi <= threshold.ok { return .ok }
-        if aqi <= threshold.caution { return .caution }
+    private static func recommendation(severity: Double, threshold: Threshold) -> Rec {
+        if severity <= threshold.great { return .great }
+        if severity <= threshold.ok { return .ok }
+        if severity <= threshold.caution { return .caution }
         return .avoid
     }
 
     private static func baseThreshold(for activity: Activity) -> Threshold {
         switch activity {
-        case .running:
-            Threshold(great: 40, ok: 80, caution: 120)
-        case .cycling:
-            Threshold(great: 40, ok: 80, caution: 120)
-        case .walking:
-            Threshold(great: 50, ok: 100, caution: 150)
+        case .running, .cycling:
+            Threshold(usAQI: 40, 80, 120)
+        case .walking, .outdoorDining:
+            Threshold(usAQI: 50, 100, 150)
         case .playgroundWithKids:
-            Threshold(great: 35, ok: 70, caution: 100)
-        case .outdoorDining:
-            Threshold(great: 50, ok: 100, caution: 150)
+            Threshold(usAQI: 35, 70, 100)
         }
     }
 
-    /// AQI points to move an activity's boundaries down for this profile.
+    /// How far to move an activity's boundaries down for this profile, in ladder
+    /// positions (one EPA band ≈ 1.0, so 0.5 ≈ 25 AQI points).
     /// Respiratory conditions affect everything; ozone sensitivity affects hard
     /// exertion while ozone is up; children tighten playground advice further.
-    private static func thresholdShift(for activity: Activity, profile: HealthProfile, ozoneMatters: Bool) -> Int {
-        var shift = 0
-        if profile.hasRespiratoryCondition { shift += 25 }
-        if ozoneMatters, activity == .running || activity == .cycling { shift += 20 }
-        if profile.hasChildren, activity == .playgroundWithKids { shift += 15 }
+    private static func thresholdShift(for activity: Activity, profile: HealthProfile, ozoneMatters: Bool) -> Double {
+        var shift = 0.0
+        if profile.hasRespiratoryCondition { shift += 0.5 }
+        if ozoneMatters, activity == .running || activity == .cycling { shift += 0.4 }
+        if profile.hasChildren, activity == .playgroundWithKids { shift += 0.3 }
         return shift
     }
 }

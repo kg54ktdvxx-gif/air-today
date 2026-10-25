@@ -11,7 +11,6 @@ struct AtmosphereBlendTests {
             pollutants: [],
             weather: Weather(windSpeed: wind),
             station: Station(id: 1, name: "Test", coordinate: Coordinate(latitude: 0, longitude: 0), url: ""),
-            forecast: [],
             timestamp: Date(timeIntervalSince1970: 1_792_900_000),
             attribution: [],
             timeZoneOffset: 0
@@ -40,6 +39,18 @@ struct AtmosphereBlendTests {
         let justBefore = clean.blended(with: smoggy, fraction: 0.49).particleConfig.birthRate
         let justAfter = clean.blended(with: smoggy, fraction: 0.51).particleConfig.birthRate
         #expect(abs(justAfter - justBefore) < 2)
+    }
+
+    @Test("The atmosphere follows the chosen scale's severity")
+    func followsScale() {
+        let now = Date(timeIntervalSince1970: 1_792_900_000)
+        // US AQI 40 (Good) while the EEA index is 85 (Very poor).
+        let model = Fixture.model(current: now) { Fixture.sample($0, us: 40, eu: 85) }
+        let quality = Fixture.station(aqi: 40, at: now, model: model)
+        let us = AtmosphereParameters(from: quality, scale: .usEPA, at: now)
+        let eu = AtmosphereParameters(from: quality, scale: .euEAQI, at: now)
+        #expect(us.hazeDensity < eu.hazeDensity)
+        #expect(eu == AtmosphereParameters(from: Fixture.station(aqi: Severity.equivalentUSAQI(at: Severity.position(of: 85, on: .euEAQI)), at: now), at: now))
     }
 
     @Test("Fractions outside 0…1 are clamped")

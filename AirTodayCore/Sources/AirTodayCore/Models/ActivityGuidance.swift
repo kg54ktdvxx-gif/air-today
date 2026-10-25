@@ -15,7 +15,8 @@ public struct ActivityGuidance: Sendable {
 }
 
 public struct ActivityRec: Sendable, Identifiable {
-    public let id = UUID()
+    /// One row per activity; a stable ID keeps rows in place when guidance is recomputed.
+    public var id: Activity { activity }
     public let activity: Activity
     public let recommendation: Rec
     public let reason: String

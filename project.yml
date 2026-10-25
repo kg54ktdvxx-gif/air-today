@@ -34,7 +34,6 @@ targets:
       - package: AirTodayCore
       - package: AirTodayUI
       - target: AirTodayWidgetExtension
-      - target: AirTodayLiveActivityExtension
       - target: AirTodayWatch
     entitlements:
       path: AirTodayApp/AirToday.entitlements
@@ -47,8 +46,6 @@ targets:
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
         INFOPLIST_KEY_UIRequiresFullScreen: true
-        INFOPLIST_KEY_NSSupportsLiveActivities: true
-        INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates: true
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_FILE: AirTodayApp/Info.plist
         INFOPLIST_KEY_UIBackgroundModes: "fetch"
@@ -88,31 +85,6 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.airtoday.shared
-
-  AirTodayLiveActivityExtension:
-    type: app-extension
-    platform: iOS
-    sources:
-      - path: AirTodayLiveActivity
-    resources:
-      - path: AirTodayLiveActivity/PrivacyInfo.xcprivacy
-    dependencies:
-      - package: AirTodayCore
-    info:
-      path: AirTodayLiveActivity/Info.plist
-      properties:
-        CFBundleDisplayName: "Air Today Live Activity"
-        CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.widgetkit-extension
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity.live
-        MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: 10
-        GENERATE_INFOPLIST_FILE: true
-        INFOPLIST_KEY_NSSupportsLiveActivities: true
 
   AirTodayWatch:
     type: application

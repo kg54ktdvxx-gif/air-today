@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// The index the app displays. Guidance, verdicts and the atmosphere stay on
-/// US EPA levels whatever is chosen; only the numbers and bands shown change.
+/// The index the app displays. Verdicts, activity advice, alerts and the atmosphere
+/// all follow the chosen scale through its `severity` (see `Severity`).
 public enum AQIScale: String, CaseIterable, Sendable {
     case usEPA
-    case euCAQI
+    case euEAQI
     case ukDAQI
 
     public static let storageKey = "aqi_scale"
@@ -16,16 +16,34 @@ public enum AQIScale: String, CaseIterable, Sendable {
     public var shortName: String {
         switch self {
         case .usEPA: "US EPA AQI"
-        case .euCAQI: "EU CAQI"
+        case .euEAQI: "European AQI"
         case .ukDAQI: "UK DAQI"
+        }
+    }
+
+    /// For tight spaces: "AQI 42", "EAQI 23", "DAQI 3".
+    public var compactName: String {
+        switch self {
+        case .usEPA: "AQI"
+        case .euEAQI: "EAQI"
+        case .ukDAQI: "DAQI"
         }
     }
 
     public var rangeDescription: String {
         switch self {
         case .usEPA: "0–500"
-        case .euCAQI: "0–100+"
+        case .euEAQI: "0–100+"
         case .ukDAQI: "1–10"
+        }
+    }
+
+    /// The value a full gauge stands for (complications and Lock Screen widgets).
+    public var gaugeTop: Double {
+        switch self {
+        case .usEPA: 500
+        case .euEAQI: 100
+        case .ukDAQI: 10
         }
     }
 
@@ -38,83 +56,149 @@ public enum AQIScale: String, CaseIterable, Sendable {
     public var accessibilityName: String {
         switch self {
         case .usEPA: "US EPA Air Quality Index, out of 500"
-        case .euCAQI: "European Common Air Quality Index, out of 100"
+        case .euEAQI: "European Air Quality Index, out of 100"
         case .ukDAQI: "UK Daily Air Quality Index, out of 10"
         }
     }
 
-    /// Pollutants WAQI forecasts (PM2.5, PM10, O₃) are on every scale; these are
-    /// the ones this scale's index is built from.
+    /// Who publishes the scale, for the "About this advice" sheet.
+    public var authority: (name: String, url: URL) {
+        switch self {
+        case .usEPA: ("US Environmental Protection Agency (AirNow)", URL(string: "https://www.airnow.gov/aqi/aqi-basics/")!)
+        case .euEAQI: ("European Environment Agency", URL(string: "https://airindex.eea.europa.eu/")!)
+        case .ukDAQI: ("Defra UK-AIR", URL(string: "https://uk-air.defra.gov.uk/air-pollution/daqi")!)
+        }
+    }
+
+    /// Pollutants the scale's index is built from.
     public var pollutants: Set<Pollutant.Kind> {
         switch self {
         case .usEPA: Set(Pollutant.Kind.allCases)
-        case .euCAQI: [.no2, .pm10, .o3, .pm25]
-        case .ukDAQI: [.o3, .no2, .so2, .pm25, .pm10]
+        case .euEAQI, .ukDAQI: [.pm25, .pm10, .o3, .no2, .so2]
         }
     }
 
     // MARK: - Readings
 
-    /// Today's index on this scale. Nil when the station reports none of the
-    /// pollutants this scale is built from (callers fall back to US EPA).
+    /// The reading on this scale. US EPA comes from the headline source; the EU and
+    /// UK indices need the model's concentrations, so they're nil without model data.
     public func reading(for quality: AirQuality) -> ScaledReading? {
-        if self == .usEPA {
-            return ScaledReading(
-                value: quality.aqi,
-                band: band(forValue: Double(quality.aqi)),
-                dominantPollutant: quality.dominantPollutant
-            )
-        }
-
-        let subIndices = quality.pollutants.compactMap { pollutant -> (Pollutant.Kind, Double)? in
-            subIndex(for: pollutant.kind, epaAQI: pollutant.aqi).map { (pollutant.kind, $0) }
-        }
-        guard let top = subIndices.max(by: { $0.1 < $1.1 }) else { return nil }
-        let value = Int(top.1.rounded())
-        return ScaledReading(value: value, band: band(forValue: Double(value)), dominantPollutant: top.0)
-    }
-
-    /// The reading to show: this scale's, or US EPA's (with `scale` saying so)
-    /// when the station doesn't report anything this scale is built from.
-    public func displayReading(for quality: AirQuality) -> (scale: AQIScale, reading: ScaledReading) {
-        if let reading = reading(for: quality) { return (self, reading) }
-        let epa = ScaledReading(
-            value: quality.aqi,
-            band: AQIScale.usEPA.band(forValue: Double(quality.aqi)),
-            dominantPollutant: quality.dominantPollutant
-        )
-        return (.usEPA, epa)
-    }
-
-    /// One pollutant's index on this scale, from WAQI's US EPA sub-index.
-    /// Nil if this scale doesn't use that pollutant.
-    public func subIndex(for kind: Pollutant.Kind, epaAQI: Double) -> Double? {
-        if self == .usEPA { return epaAQI }
-        guard pollutants.contains(kind),
-              let concentration = EPABreakpoints.concentration(of: kind, fromAQI: epaAQI)
-        else { return nil }
-
         switch self {
         case .usEPA:
-            return epaAQI
-        case .euCAQI:
-            return CAQIGrid.subIndex(of: kind, microgramsPerCubicMetre: concentration)
+            return ScaledReading(scale: self, value: quality.aqi, dominantPollutant: quality.dominantPollutant)
+        case .euEAQI:
+            guard let current = quality.model?.current, let value = current.europeanAQI else { return nil }
+            let dominant = current.europeanSubIndices.max { $0.value < $1.value }?.key
+            return ScaledReading(scale: self, value: value, dominantPollutant: dominant)
         case .ukDAQI:
-            return DAQIBands.index(of: kind, microgramsPerCubicMetre: concentration).map(Double.init)
+            guard let model = quality.model,
+                  let index = model.hourIndex(atOrBefore: model.current.time)
+            else { return nil }
+            let perPollutant = DAQICalculator.indices(at: index, in: model.hourly)
+            guard let top = perPollutant.max(by: { $0.value < $1.value }) else { return nil }
+            return ScaledReading(scale: self, value: top.value, dominantPollutant: top.key)
+        }
+    }
+
+    /// The reading to show: this scale's, or US EPA's (with `scale` saying so) when
+    /// this scale needs model data that isn't available.
+    public func displayReading(for quality: AirQuality) -> (scale: AQIScale, reading: ScaledReading) {
+        if let reading = reading(for: quality) { return (self, reading) }
+        return (.usEPA, AQIScale.usEPA.reading(for: quality)!)
+    }
+
+    /// One pollutant's index on this scale. Nil if the scale doesn't use it or the
+    /// data isn't there.
+    public func subIndex(for kind: Pollutant.Kind, in quality: AirQuality) -> Int? {
+        guard pollutants.contains(kind) else { return nil }
+        switch self {
+        case .usEPA:
+            return quality.pollutants.first { $0.kind == kind }.map { Int($0.aqi.rounded()) }
+        case .euEAQI:
+            return quality.model?.current.europeanSubIndices[kind]
+        case .ukDAQI:
+            guard let model = quality.model, let index = model.hourIndex(atOrBefore: model.current.time) else { return nil }
+            return DAQICalculator.indices(at: index, in: model.hourly)[kind]
+        }
+    }
+
+    // MARK: - Forecast
+
+    /// Hourly values on this scale from the current hour on — overall, or one pollutant.
+    public func hourlySeries(for quality: AirQuality, pollutant: Pollutant.Kind? = nil, now: Date = Date()) -> [(time: Date, value: Int)] {
+        guard let model = quality.model else { return [] }
+        let start = now.addingTimeInterval(-3599)
+        return model.hourly.indices.compactMap { index -> (time: Date, value: Int)? in
+            let sample = model.hourly[index]
+            guard sample.time >= start else { return nil }
+            let value: Int?
+            switch self {
+            case .usEPA:
+                value = pollutant.map { sample.usSubIndices[$0] } ?? sample.usAQI
+            case .euEAQI:
+                value = pollutant.map { sample.europeanSubIndices[$0] } ?? sample.europeanAQI
+            case .ukDAQI:
+                let indices = DAQICalculator.indices(at: index, in: model.hourly)
+                value = pollutant.map { indices[$0] } ?? indices.values.max()
+            }
+            return value.map { (sample.time, $0) }
         }
     }
 
     // MARK: - Bands
 
-    public func band(forValue value: Double) -> ScaleBand {
+    public func band(forValue value: Int) -> ScaleBand {
         switch self {
         case .usEPA:
-            let level = AQILevel(aqi: Int(value.rounded()))
+            let level = AQILevel(aqi: value)
             return ScaleBand(name: level.shortLabel, longName: level.label, color: level.color)
-        case .euCAQI:
-            return CAQIGrid.band(forIndex: value)
+        case .euEAQI:
+            return EAQIBands.band(forIndex: value)
         case .ukDAQI:
-            return DAQIBands.band(forIndex: Int(value.rounded()))
+            return DAQIBands.band(forIndex: value)
+        }
+    }
+
+    /// Every band with its range, best first, for explaining the scale.
+    public var bands: [(range: String, band: ScaleBand)] {
+        let ranges: [(String, Int)] = switch self {
+        case .usEPA: [("0–50", 25), ("51–100", 75), ("101–150", 125), ("151–200", 175), ("201–300", 250), ("301+", 400)]
+        case .euEAQI: [("0–20", 10), ("20–40", 30), ("40–60", 50), ("60–80", 70), ("80–100", 90), ("100+", 120)]
+        case .ukDAQI: [("1–3", 2), ("4–6", 5), ("7–9", 8), ("10", 10)]
+        }
+        return ranges.map { ($0.0, band(forValue: $0.1)) }
+    }
+
+    /// The scale's own name for a severity level, for the alert-level picker.
+    /// Several scales have fewer bands than the ladder, so some levels share a name.
+    public func bandName(for level: AQILevel) -> String {
+        switch self {
+        case .usEPA:
+            return level.label
+        case .euEAQI:
+            switch level {
+            case .good: return "Good / Fair"
+            case .moderate: return "Moderate"
+            case .sensitive: return "Poor"
+            case .unhealthy: return "Very poor"
+            case .veryUnhealthy, .hazardous: return "Extremely poor"
+            }
+        case .ukDAQI:
+            switch level {
+            case .good: return "Low (1–3)"
+            case .moderate: return "Moderate (4–6)"
+            case .sensitive: return "High (7–9)"
+            case .unhealthy, .veryUnhealthy, .hazardous: return "Very High (10)"
+            }
+        }
+    }
+
+    /// Alert levels worth offering on this scale (one per distinct band from Moderate up).
+    public var alertLevels: [AQILevel] {
+        switch self {
+        case .usEPA: [.moderate, .sensitive, .unhealthy, .veryUnhealthy]
+        case .euEAQI: [.moderate, .sensitive, .unhealthy, .veryUnhealthy]
+        case .ukDAQI: [.moderate, .sensitive, .unhealthy]
         }
     }
 
@@ -123,8 +207,8 @@ public enum AQIScale: String, CaseIterable, Sendable {
         switch self {
         case .usEPA:
             [(50, "Good", AQILevel.good.color), (100, "Moderate", AQILevel.moderate.color), (150, "Sensitive", AQILevel.sensitive.color)]
-        case .euCAQI:
-            [(25, "Very low", CAQIGrid.colors[0]), (50, "Low", CAQIGrid.colors[1]), (75, "Medium", CAQIGrid.colors[2])]
+        case .euEAQI:
+            [(20, "Good", EAQIBands.colors[0]), (40, "Fair", EAQIBands.colors[1]), (60, "Moderate", EAQIBands.colors[2])]
         case .ukDAQI:
             // Mid-band colours: the top-of-band ones (dark red at 9) vanish on a dark card.
             [(3, "Low", DAQIBands.colors[1]), (6, "Moderate", DAQIBands.colors[4]), (9, "High", DAQIBands.colors[6])]
@@ -135,16 +219,21 @@ public enum AQIScale: String, CaseIterable, Sendable {
     public var chartMinimumTop: Double {
         switch self {
         case .usEPA: 160
-        case .euCAQI: 85
+        case .euEAQI: 70
         case .ukDAQI: 10
         }
     }
 }
 
 public struct ScaledReading: Equatable, Sendable {
+    public let scale: AQIScale
     public let value: Int
-    public let band: ScaleBand
     public let dominantPollutant: Pollutant.Kind?
+
+    public var band: ScaleBand { scale.band(forValue: value) }
+    /// Position on the shared severity ladder (0 good … 6 hazardous).
+    public var severity: Double { Severity.position(of: value, on: scale) }
+    public var severityLevel: AQILevel { Severity.level(at: severity) }
 }
 
 public struct ScaleBand: Equatable, Sendable {
@@ -155,104 +244,107 @@ public struct ScaleBand: Equatable, Sendable {
     public let color: Color
 }
 
-// MARK: - US EPA (as WAQI computes it)
+// MARK: - Severity ladder
 
-/// WAQI's sub-indices use the US EPA tables from its own calculator (the 2016
-/// standard — PM2.5 "Good" runs to 12 µg/m³, not the 2024 revision's 9), so
-/// those are the tables to invert. Verified against
-/// aqicn.org/air-cache/calculator/dist/calculator.js on 2026-10-25.
-enum EPABreakpoints {
-    private static let indices: [Double] = [0, 50, 100, 150, 200, 300, 400, 500]
-
-    /// Concentration in µg/m³ (gases converted from ppb/ppm at 20 °C, the EU/UK
-    /// reference), or nil for CO, which neither European index uses.
-    static func concentration(of kind: Pollutant.Kind, fromAQI aqi: Double) -> Double? {
-        let aqi = max(0, aqi)
-        switch kind {
-        case .pm25:
-            return interpolate(aqi, indices, [0, 12, 35.5, 55.5, 150.5, 250.5, 350.5, 500.5])
-        case .pm10:
-            return interpolate(aqi, indices, [0, 55, 155, 255, 355, 425, 505, 605])
-        case .o3:
-            // 8-hour table up to 300; above that EPA (and WAQI) switch to 1-hour ozone.
-            let ppm = aqi <= 300
-                ? interpolate(aqi, [0, 50, 100, 150, 200, 300], [0, 0.06, 0.076, 0.096, 0.116, 0.375])
-                : interpolate(aqi, [300, 400, 500], [0.405, 0.505, 0.605])
-            return GasConversion.ozone.microgramsPerCubicMetre(ppb: ppm * 1000)
-        case .no2:
-            let ppm = interpolate(aqi, indices, [0, 0.054, 0.101, 0.361, 0.65, 1.25, 1.65, 2.049])
-            return GasConversion.nitrogenDioxide.microgramsPerCubicMetre(ppb: ppm * 1000)
-        case .so2:
-            // 1-hour table below 200; 24-hour table from 200 up.
-            let ppb = aqi < 200
-                ? interpolate(aqi, [0, 50, 100, 150, 200], [0, 36, 76, 186, 304])
-                : interpolate(aqi, [200, 300, 400, 500], [304, 605, 805, 1004])
-            return GasConversion.sulphurDioxide.microgramsPerCubicMetre(ppb: ppb)
-        case .co:
-            return nil
+/// One scale-independent measure of how bad the air is, so advice, alerts and the
+/// atmosphere mean the same thing whichever index is shown.
+///
+/// The ladder's whole-number levels are the US EPA categories (as `AQILevel`). Each
+/// scale's bands are placed on it by what its publisher advises, not by numbers:
+/// EEA "Good" and "Fair" both advise usual activity for everyone, so both sit in
+/// the first level; Defra's DAQI "Very High" tells at-risk people to avoid strenuous
+/// activity and everyone else to reduce it — EPA's "Unhealthy". Within a level the
+/// position rises with the value, so per-activity thresholds stay fine-grained.
+public enum Severity {
+    /// 0 ≤ position < 6; whole part is the level.
+    public static func position(of value: Int, on scale: AQIScale) -> Double {
+        switch scale {
+        case .usEPA:
+            let bands = [(0, 50), (51, 100), (101, 150), (151, 200), (201, 300), (301, 500)]
+            guard let index = bands.firstIndex(where: { value <= $0.1 }) else { return 5.99 }
+            let (low, high) = bands[index]
+            // +1 so a band's top value stays below the next band's first (50 < 51).
+            return Double(index) + Double(max(value, low) - low) / Double(high - low + 1)
+        case .euEAQI:
+            let v = Double(max(value, 0))
+            switch v {
+            case ..<40: return v / 40 * 0.99            // Good + Fair
+            case ..<60: return 1 + (v - 40) / 20 * 0.99 // Moderate
+            case ..<80: return 2 + (v - 60) / 20 * 0.99 // Poor
+            case ..<100: return 3 + (v - 80) / 20 * 0.99 // Very poor
+            default: return 4 + min((v - 100) / 100, 0.99) // Extremely poor
+            }
+        case .ukDAQI:
+            switch min(max(value, 1), 10) {
+            case let i where i <= 3: return Double(i - 1) / 3     // Low
+            case let i where i <= 6: return 1 + Double(i - 4) / 3 // Moderate
+            case let i where i <= 9: return 2 + Double(i - 7) / 3 // High
+            default: return 3.5                                    // Very High
+            }
         }
     }
 
-    /// Piecewise-linear lookup of `x` on `xs` → `ys`, extrapolating past the last segment.
-    static func interpolate(_ x: Double, _ xs: [Double], _ ys: [Double]) -> Double {
-        precondition(xs.count == ys.count && xs.count >= 2)
-        var i = 0
-        while i < xs.count - 2 && x > xs[i + 1] { i += 1 }
-        let t = (x - xs[i]) / (xs[i + 1] - xs[i])
-        return ys[i] + t * (ys[i + 1] - ys[i])
+    public static func level(at position: Double) -> AQILevel {
+        AQILevel(rawValue: min(max(Int(position), 0), 5)) ?? .good
+    }
+
+    /// A US EPA AQI as a position, for thresholds written in AQI numbers.
+    public static func position(usAQI: Int) -> Double {
+        position(of: usAQI, on: .usEPA)
+    }
+
+    /// The US EPA AQI at a position — for visuals tuned on AQI numbers (haze density).
+    public static func equivalentUSAQI(at position: Double) -> Int {
+        let bands = [(0, 50), (51, 100), (101, 150), (151, 200), (201, 300), (301, 500)]
+        let index = min(max(Int(position), 0), 5)
+        let (low, high) = bands[index]
+        let fraction = min(max(position - Double(index), 0), 1)
+        // The epsilon absorbs float error, so a US value maps back to itself (25 not 24).
+        return low + Int(fraction * Double(high - low + 1) + 1e-9)
     }
 }
 
-/// ppb → µg/m³ at 20 °C and 101.325 kPa (molar volume 24.04 L), the reference
-/// EU directive 2008/50/EC and UK DAQI use for gases.
-enum GasConversion: Double {
-    case ozone = 48.00
-    case nitrogenDioxide = 46.01
-    case sulphurDioxide = 64.07
+// MARK: - European AQI (EEA, 2024 bands)
 
-    func microgramsPerCubicMetre(ppb: Double) -> Double {
-        ppb * rawValue / 24.04
-    }
-}
-
-// MARK: - EU CAQI (CITEAIR hourly background grid)
-
-enum CAQIGrid {
-    /// Index boundaries 0/25/50/75/100 against each pollutant's µg/m³ grid.
-    private static let indices: [Double] = [0, 25, 50, 75, 100]
-
-    static func subIndex(of kind: Pollutant.Kind, microgramsPerCubicMetre c: Double) -> Double? {
-        let grid: [Double]
-        switch kind {
-        case .no2: grid = [0, 50, 100, 200, 400]
-        case .pm10: grid = [0, 25, 50, 90, 180]
-        case .o3: grid = [0, 60, 120, 180, 240]
-        case .pm25: grid = [0, 15, 30, 55, 110]
-        case .so2, .co: return nil
-        }
-        // Above the grid CAQI keeps climbing past 100 ("Very high").
-        return EPABreakpoints.interpolate(max(0, c), grid, indices)
-    }
-
+enum EAQIBands {
+    /// EEA's published colours, Good → Extremely poor.
     static let colors: [Color] = [
-        Color(.sRGB, red: 0.475, green: 0.737, blue: 0.416),  // Very low
-        Color(.sRGB, red: 0.725, green: 0.808, blue: 0.271),  // Low
-        Color(.sRGB, red: 0.929, green: 0.757, blue: 0.000),  // Medium
-        Color(.sRGB, red: 0.965, green: 0.573, blue: 0.031),  // High
-        Color(.sRGB, red: 0.941, green: 0.212, blue: 0.404),  // Very high
+        Color(.sRGB, red: 80 / 255, green: 240 / 255, blue: 230 / 255),
+        Color(.sRGB, red: 80 / 255, green: 204 / 255, blue: 170 / 255),
+        Color(.sRGB, red: 240 / 255, green: 230 / 255, blue: 65 / 255),
+        Color(.sRGB, red: 255 / 255, green: 80 / 255, blue: 80 / 255),
+        Color(.sRGB, red: 150 / 255, green: 0, blue: 50 / 255),
+        Color(.sRGB, red: 125 / 255, green: 33 / 255, blue: 129 / 255),
     ]
 
-    static func band(forIndex value: Double) -> ScaleBand {
-        let names = ["Very low", "Low", "Medium", "High", "Very high"]
-        let i = value < 25 ? 0 : value < 50 ? 1 : value < 75 ? 2 : value <= 100 ? 3 : 4
+    static func band(forIndex value: Int) -> ScaleBand {
+        let names = ["Good", "Fair", "Moderate", "Poor", "Very poor", "Extremely poor"]
+        let i = min(max(value, 0) / 20, 5)
         return ScaleBand(name: names[i], longName: names[i], color: colors[i])
     }
 }
 
 // MARK: - UK DAQI (Defra bands)
 
-/// Defra's Daily Air Quality Index bands, µg/m³. DAQI averages ozone over 8 hours
-/// and particles over 24; WAQI gives current readings, so this is an estimate.
+/// Defra's Daily Air Quality Index, from µg/m³ with its averaging periods.
+enum DAQICalculator {
+    /// PM2.5 and PM10 use a 24-hour mean and ozone a running 8-hour mean; NO2 is
+    /// hourly. SO2 is officially a 15-minute mean — hourly is the closest the model has.
+    static func indices(at index: Int, in hourly: [ModelSample]) -> [Pollutant.Kind: Int] {
+        var result: [Pollutant.Kind: Int] = [:]
+        let rules: [(Pollutant.Kind, hours: Int, minimum: Int)] = [
+            (.pm25, 24, 18), (.pm10, 24, 18), (.o3, 8, 6), (.no2, 1, 1), (.so2, 1, 1),
+        ]
+        for (kind, hours, minimum) in rules {
+            let window = hourly[max(0, index - hours + 1)...index].compactMap { $0.concentrations[kind] }
+            guard window.count >= minimum else { continue }
+            let mean = window.reduce(0, +) / Double(window.count)
+            result[kind] = DAQIBands.index(of: kind, microgramsPerCubicMetre: mean)
+        }
+        return result
+    }
+}
+
 enum DAQIBands {
     /// Upper bound of indices 1–9 for each pollutant; above the last is index 10.
     private static func upperBounds(for kind: Pollutant.Kind) -> [Double]? {

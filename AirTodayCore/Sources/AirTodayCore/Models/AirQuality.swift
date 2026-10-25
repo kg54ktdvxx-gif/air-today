@@ -1,30 +1,43 @@
 import Foundation
 
+/// The air at one place: a headline US EPA reading plus everything shown around it.
+///
+/// The headline comes from the nearest WAQI station when it's recent and close, and
+/// from the CAMS model otherwise (`ReadingComposer`). The model's hourly data rides
+/// along for the forecast, best time and the EU/UK scales.
 public struct AirQuality: Codable, Sendable {
+    /// Overall US EPA AQI of the headline source.
     public let aqi: Int
     public let level: AQILevel
     public let dominantPollutant: Pollutant.Kind?
+    /// US EPA sub-index per pollutant, from the headline source.
     public let pollutants: [Pollutant]
+    /// From the station feed when there is one.
     public let weather: Weather
-    public let station: Station
-    public let forecast: [DailyForecast]
-    public let uviForecast: [UVIForecastPoint]
+    /// The WAQI station that reported, if any — even when the model supplied the headline.
+    public let station: Station?
+    public let source: ReadingSource
+    public let model: ModelAirData?
+    /// When the headline was measured (station) or valid (model).
     public let timestamp: Date
     public let attribution: [Attribution]
-    /// Timezone offset in seconds from GMT (parsed from WAQI `tz` field).
+    /// Offset from GMT in seconds for the place's local time.
     public let timeZoneOffset: Int?
+    /// Town name for the current location (looked up on device); nil for saved cities.
+    public var placeName: String?
 
     public init(
         aqi: Int,
         dominantPollutant: Pollutant.Kind?,
         pollutants: [Pollutant],
         weather: Weather,
-        station: Station,
-        forecast: [DailyForecast],
-        uviForecast: [UVIForecastPoint] = [],
+        station: Station?,
+        source: ReadingSource = .station,
+        model: ModelAirData? = nil,
         timestamp: Date,
         attribution: [Attribution],
-        timeZoneOffset: Int? = nil
+        timeZoneOffset: Int? = nil,
+        placeName: String? = nil
     ) {
         self.aqi = aqi
         self.level = AQILevel(aqi: aqi)
@@ -32,38 +45,55 @@ public struct AirQuality: Codable, Sendable {
         self.pollutants = pollutants
         self.weather = weather
         self.station = station
-        self.forecast = forecast
-        self.uviForecast = uviForecast
+        self.source = source
+        self.model = model
         self.timestamp = timestamp
         self.attribution = attribution
         self.timeZoneOffset = timeZoneOffset
+        self.placeName = placeName
     }
 
-    /// Trend based on forecast data for dominant pollutant.
-    public var trend: Trend {
-        let todayString = Self.todayDateString(timeZoneOffset: timeZoneOffset)
-        let relevant = forecast
-            .filter { $0.pollutant == (dominantPollutant ?? .pm25) && $0.day >= todayString }
-            .sorted { $0.day < $1.day }
-        guard relevant.count >= 2,
-              let today = relevant.first,
-              let tomorrow = relevant.dropFirst().first else {
-            return .stable
-        }
-
-        let delta = tomorrow.avg - today.avg
-        if delta > 10 { return .worsening }
-        if delta < -10 { return .improving }
-        return .stable
+    /// What to call the current location: the looked-up town, else the reporting
+    /// station's name up to its first comma.
+    public var locationLabel: String? {
+        placeName ?? station.map { $0.name.components(separatedBy: ",").first ?? $0.name }
     }
 
-    /// Today's UV forecast for the station's local date, if WAQI provides one.
-    public var todayUVForecast: UVIForecastPoint? {
-        let today = Self.todayDateString(timeZoneOffset: timeZoneOffset)
-        return uviForecast.first { $0.day == today }
+    /// Where this reading is for: the station's position, else the model's.
+    public var coordinate: Coordinate? {
+        station?.coordinate ?? model?.coordinate
     }
 
-    /// Returns today's date string (yyyy-MM-dd) in the station's local timezone.
+    /// Today's highest forecast UV index at this place, from the model.
+    public func todayUVPeak(now: Date = Date()) -> Double? {
+        guard let model else { return nil }
+        let calendar = model.calendar
+        return model.hourly
+            .filter { calendar.isDate($0.time, inSameDayAs: now) }
+            .compactMap(\.uvIndex)
+            .max()
+    }
+
+    /// This place as the model sees it at another hour — for forecast verdicts.
+    /// Station details are dropped: they describe now, not then.
+    public func atModelHour(_ sample: ModelSample) -> AirQuality? {
+        guard let model, let aqi = sample.usAQI else { return nil }
+        return AirQuality(
+            aqi: aqi,
+            dominantPollutant: sample.usDominant,
+            pollutants: sample.usSubIndices.map { Pollutant(kind: $0.key, aqi: Double($0.value)) },
+            weather: Weather(),
+            station: nil,
+            source: .model,
+            model: ModelAirData(current: sample, hourly: model.hourly, coordinate: model.coordinate, utcOffsetSeconds: model.utcOffsetSeconds, fetchedAt: model.fetchedAt, weather: model.weather),
+            timestamp: sample.time,
+            attribution: attribution,
+            timeZoneOffset: model.utcOffsetSeconds,
+            placeName: placeName
+        )
+    }
+
+    /// Returns today's date string (yyyy-MM-dd) in the place's local timezone.
     static func todayDateString(timeZoneOffset: Int?, now: Date = Date()) -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -77,18 +107,12 @@ public struct AirQuality: Codable, Sendable {
     }
 }
 
-public enum Trend: String, Codable, Sendable {
-    case improving
-    case stable
-    case worsening
-
-    public var symbol: String {
-        switch self {
-        case .improving: "arrow.down.right"
-        case .stable: "arrow.right"
-        case .worsening: "arrow.up.right"
-        }
-    }
+/// Where the headline reading came from.
+public enum ReadingSource: String, Codable, Sendable {
+    /// A WAQI monitoring station's measurement.
+    case station
+    /// The CAMS model's estimate for the area.
+    case model
 }
 
 public enum LoadingState: Sendable {

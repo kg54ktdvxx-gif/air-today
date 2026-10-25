@@ -46,6 +46,8 @@ public enum DS {
 
     /// App-only preference: turns off haze, particles, parallax and swipe lag.
     public static let reduceVisualEffectsKey = "reduce_visual_effects"
+    /// How many times the app has launched; some first-run hints stop after a few.
+    public static let launchCountKey = "launch_count"
 
     // MARK: - Motion
 

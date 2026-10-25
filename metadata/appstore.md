@@ -12,87 +12,88 @@
 ```
 Air Today turns air quality into something you can feel. Instead of burying you in numbers, it paints the sky — the entire screen shifts from clear blue to hazy amber to deep red, so you know the moment you open the app whether it's a good day to be outside.
 
-The air quality index is there if you want it. But the real answer is the verdict at the top of the screen: "Great day to be outside" or "Sensitive groups should limit time outdoors." Plain language, no interpretation required.
+The number is there if you want it. But the real answer is the verdict above it: "Great day to be outside" or "Limit prolonged outdoor exertion." Plain language, no interpretation required.
+
+ALWAYS CURRENT
+Air Today shows the nearest monitoring station when it has reported in the last two hours and is close by. Otherwise it shows a live estimate for your area from the Copernicus Atmosphere Monitoring Service — and always says which you're looking at, how far away and how fresh.
 
 KNOW WHAT YOU CAN DO TODAY
-Air Today gives you per-activity guidance for the things that actually matter:
+Advice for the things that actually matter:
 • Running and cycling — how hard can you push?
 • Walking and outdoor dining — is it pleasant out there?
 • Playground time with kids — are the little ones safe?
-
-Each recommendation is time-aware. Morning air is often different from afternoon air, and Air Today accounts for that.
+When it isn't a great time, Air Today tells you when the air will be cleanest, from the hourly forecast.
 
 PERSONAL TO YOU
-Tell Air Today three quick things during onboarding — asthma or respiratory condition, ozone sensitivity, kids in the household — and recommendations adapt. Verdict copy switches to second-person when it matters. Your answers never leave your devices.
+Tell Air Today three quick things — asthma or another respiratory condition, ozone sensitivity, kids in the household — and the advice adapts. Your answers never leave your devices.
 
 SEE WHAT'S COMING
-A forecast of up to a week ahead (depending on the station) helps you plan. Going for a long run Saturday? Check Thursday. Planning a party in the park? You'll know days in advance.
+An hourly forecast for today and tomorrow, then each day's worst hour for the days after (4 days ahead in Europe, 5 elsewhere). Going for a long run tomorrow morning? You'll know the best time.
 
-ON YOUR WRIST
-The Apple Watch app gives you a glanceable verdict + AQI before you head out. Complications for circular, corner, inline, and rectangular faces.
-
-NOTIFICATIONS THAT EARN THEIR PLACE
+GET WARNED WHEN AIR GETS WORSE
+• Alerts when the air reaches the level you choose, here and in your saved places
 • Daily verdict at the time you choose
-• Threshold alerts when air quality declines at any saved location
-• Best-window alert when conditions will be best today
-• Wildfire / spike alerts when AQI rises sharply in a short window
+• Best time to go out, from the hourly forecast
+• Spike alerts when the air worsens fast — often a sign of smoke nearby
 Every alert is independently togglable. No spam.
 
-EXPLORE NEARBY STATIONS
-A built-in map shows monitoring stations around you, each pinned with a color-coded AQI marker. Tap any pin for that station's reading.
-
-TRACK MULTIPLE LOCATIONS
-Add up to 6 locations and swipe between them. Home, office, the park where you run, your parents' place across the country.
-
-WIDGETS & SHORTCUTS
-• Activity Check widget — pick running, cycling, walking, dining, or kids
-• Best Window widget — see when air will be cleanest
-• Live Activity for poor air quality
-• Lock Screen and Home Screen widgets
-• Interactive refresh button on the widgets
-• "What's the air quality in Air Today?" / "Should I run today with Air Today?"
+ON YOUR WRIST
+The Apple Watch app gives you a glanceable verdict, number and best time before you head out. Complications for circular, corner, inline and rectangular faces.
 
 YOUR STANDARD, YOUR CHOICE
-Switch the displayed scale between US EPA, EU CAQI, and UK DAQI. Stations report on the US EPA scale; EU and UK values are worked out from those readings.
+Switch between the US EPA AQI, the European Air Quality Index and the UK Daily Air Quality Index. The European and UK indices are calculated from pollutant concentrations with each index's own averaging, and the verdict, activity advice and alerts follow whichever you pick.
+
+EXPLORE NEARBY STATIONS
+A built-in map shows monitoring stations around you, each pinned with its reading.
+
+TRACK MULTIPLE LOCATIONS
+Add up to 6 places and swipe between them — each clearly named, with its local time.
+
+WIDGETS & SHORTCUTS
+• Air quality, Activity Check and Best Window widgets
+• Lock Screen and Home Screen widgets, with a refresh button
+• "What's the air quality in Air Today?" / "Should I run today with Air Today?"
 
 BEAUTIFUL BY DEFAULT
-The atmospheric backgrounds aren't decorative. They're the interface. Particles drift faster when wind picks up. Backgrounds tint warm at sunrise and sunset, cool at night.
+The atmospheric backgrounds aren't decorative. They're the interface. Particles drift faster when the wind picks up. Backgrounds tint warm at sunrise and sunset, cool at night.
 
 ACCESSIBLE BY DEFAULT
-Reduce Motion respected automatically. A "Reduce Visual Effects" toggle for battery and clarity. Rich VoiceOver labels.
+Reduce Motion respected automatically. A "Reduce Visual Effects" setting for battery and clarity. Rich VoiceOver labels.
 
 BUILT WITH RESPECT
-Air Today is free. There are no ads. There is no tracking. There is no account to create. Your location is used only to find nearby monitoring stations.
+Air Today is free. There are no ads. There is no tracking. There is no account to create. Your location is used only to fetch the air where you are.
 
-Air quality data is provided by the World Air Quality Index Project (waqi.info) and its global network of monitoring stations.
+Station measurements from the World Air Quality Index Project (waqi.info). Estimates, forecasts and weather from Open-Meteo.com, using Copernicus Atmosphere Monitoring Service data. Activity advice follows guidance from the US EPA (AirNow), the European Environment Agency and Defra. General guidance, not medical advice.
 
 Made by one person who wanted a better way to decide whether to go for a run.
 ```
 
-(3,377 characters)
+(3,640 characters)
 
 ## Keywords (100 char max)
 
 ```
-air quality,AQI,pollution,PM2.5,health,outdoor,forecast,smog,pollen,breathing,lung,ozone,wildfire
+air quality,AQI,pollution,PM2.5,health,outdoor,forecast,smog,breathing,asthma,ozone,wildfire,UV
 ```
 
-(97 characters)
+(95 characters) — "pollen" dropped: the app has no pollen data.
 
 ## What's New (4000 char max)
 
 ```
-Air Today 1.2 makes every number you see more trustworthy.
+Air Today 1.2 is about trust: numbers that are current, advice that matches the number, and alerts that find you.
 
-• Readings show their real age. Some stations were showing hours-old data as "just now" — or always looking out of date.
-• Stations that have stopped reporting are now marked instead of showing their last reading as if it were current.
-• Saved cities stay on the station you picked, instead of drifting to the nearest one that's reporting — which could be hundreds of miles away.
-• Your home-screen widgets now always describe where you are, not the last city you looked at, and refresh themselves.
-• Adding a city opens it straight away.
-• Smoother, more reliable Live Activity.
+• Always current. When the nearest station hasn't reported in the last two hours, you see a live estimate for your area instead — and the screen says which it is, how far away and how fresh.
+• A real hourly forecast for today and tomorrow, then the days after. The best time to go out now comes from that forecast.
+• The European and UK indices are now calculated properly, and the verdict, activity advice and alerts follow the scale you choose.
+• Every page shows its place name; other cities show their local time.
+• Get warned when air gets worse — one tap to turn on.
+• "About this advice" explains where the guidance and data come from.
+• A simpler main screen and Settings. The Live Activity is gone: Lock Screen widgets do its job and stay current.
+• Readings show their real age, stations that have stopped reporting are skipped, and saved cities stay on the station you picked.
 ```
 
-(639 characters) — DRAFT for 1.2.0, not yet in App Store Connect.
+(1002 characters) — DRAFT for 1.2.0, not yet in App Store Connect.
 
 ## Promotional Text (170 char max)
 
@@ -125,8 +126,9 @@ See your air quality at a glance — the sky tells the story. Free activity guid
 ## Privacy
 
 - **Privacy Policy URL:** https://kg54ktdvxx-gif.github.io/air-today/privacy-policy.html
-- **Data Collection:** Location (used only for nearby station lookup, not stored remotely)
-- **Data Not Linked to You:** Location is sent to the WAQI API only to fetch readings; health profile, saved places and settings stay on device (and the paired Watch)
+- **Data Collection:** Location (used only to fetch the air where you are, not stored by the developer)
+- **Data Not Linked to You:** Location is sent to the WAQI and Open-Meteo APIs only to fetch readings (Open-Meteo gets it rounded to about 1 km; Open-Meteo says its server logs, which can include coordinates, are deleted after 90 days). Apple Maps is asked for the town name. Health profile, saved places and settings stay on device (and the paired Watch)
+- **To review in App Store Connect before submitting:** whether the App Privacy answers need updating for Open-Meteo's 90-day logs (Apple counts data a third party keeps beyond serving the request as "collected")
 - **Data Not Collected:** No analytics, no tracking, no third-party SDKs
 
 ## Support URL

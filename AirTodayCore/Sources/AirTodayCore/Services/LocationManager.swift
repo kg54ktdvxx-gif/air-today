@@ -11,13 +11,13 @@ public final class LocationManager {
     /// watch each store's own data, and a store being added must not invalidate them all.
     @ObservationIgnored
     private var stores: [UUID: AirQualityStore] = [:]
-    private let service: AirQualityServiceProtocol
+    private let reader: AirReadingService
     private let locationService: LocationService
 
     private static let maxLocations = 6
 
-    public init(service: AirQualityServiceProtocol, locationService: LocationService) {
-        self.service = service
+    public init(reader: AirReadingService, locationService: LocationService) {
+        self.reader = reader
         self.locationService = locationService
         loadLocations()
         ensureCurrentLocation()
@@ -49,7 +49,7 @@ public final class LocationManager {
             return existing
         }
         let store = AirQualityStore(
-            service: service,
+            reader: reader,
             locationService: locationService,
             isCurrentLocation: location.isCurrentLocation
         )
@@ -63,23 +63,14 @@ public final class LocationManager {
         let before = locationStore.currentAQI?.timestamp
         if location.isCurrentLocation {
             await locationStore.refresh()
-        } else if let stationID = location.stationID {
-            await locationStore.fetchStation(id: stationID, coordinate: location.coordinate)
         } else {
-            await locationStore.fetchForStation(
-                latitude: location.coordinate.latitude,
-                longitude: location.coordinate.longitude,
-                maxDistance: Self.legacyStationMaxDistance
-            )
-            adoptStationID(for: location)
+            await locationStore.fetch(at: location.coordinate, stationID: location.stationID)
+            if location.stationID == nil { adoptStationID(for: location) }
         }
         await processAlerts(for: location, previousTimestamp: before)
     }
 
     /// Cities saved before station IDs were stored are looked up by coordinate.
-    /// Anything farther than this is another place's air, not this city's.
-    public static let legacyStationMaxDistance: Double = 50_000
-
     /// Once a coordinate lookup lands on the station the city was saved from
     /// (within 2 km), remember its ID so future fetches stay on it.
     private func adoptStationID(for location: SavedLocation) {

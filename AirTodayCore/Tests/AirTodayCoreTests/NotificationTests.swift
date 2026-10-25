@@ -6,24 +6,20 @@ import Testing
 struct NotificationTests {
     private let t0 = Date(timeIntervalSince1970: 1_792_900_000)
 
-    private func reading(_ aqi: Int, at date: Date, dominant: Pollutant.Kind = .pm25, forecast: [DailyForecast] = []) -> AirQuality {
-        AirQuality(
-            aqi: aqi,
-            dominantPollutant: dominant,
-            pollutants: [Pollutant(kind: dominant, aqi: Double(aqi))],
-            weather: Weather(),
-            station: Station(id: 1, name: "Test", coordinate: Coordinate(latitude: 51.5, longitude: -0.1), url: ""),
-            forecast: forecast,
-            timestamp: date,
-            attribution: [],
-            timeZoneOffset: 0
-        )
+    private func reading(_ aqi: Int, at date: Date, dominant: Pollutant.Kind = .pm25) -> AirQuality {
+        Fixture.station(aqi: aqi, at: date, dominant: dominant)
     }
 
-    private func evaluate(_ quality: AirQuality, previous: AlertState?, preferences: NotificationPreferences, now: Date? = nil) -> (alerts: [AlertContent], state: AlertState) {
+    private func evaluate(
+        _ quality: AirQuality,
+        previous: AlertState?,
+        preferences: NotificationPreferences,
+        scale: AQIScale = .usEPA,
+        now: Date? = nil
+    ) -> (alerts: [AlertContent], state: AlertState) {
         AlertEngine.evaluate(
             reading: quality, locationName: "Paris", locationKey: "k", previous: previous,
-            preferences: preferences, profile: .none, scale: .usEPA, now: now ?? quality.timestamp
+            preferences: preferences, profile: .none, scale: scale, now: now ?? quality.timestamp
         )
     }
 
@@ -94,6 +90,44 @@ struct NotificationTests {
         #expect(evaluate(reading(130, at: t0 + 8 * 3600), previous: before, preferences: prefs).alerts.isEmpty)
     }
 
+    @Test("Switching between station and model is never a spike, and an older station time isn't ignored")
+    func sourceSwitch() {
+        let prefs = NotificationPreferences(thresholdAlertsEnabled: true, spikeAlertsEnabled: true)
+        // Last time the model said 45 at 10:00; now a station measured at 09:30 says 130.
+        let before = AlertState(lastAQI: 45, lastMeasuredAt: t0 + 3600, lastSource: .model)
+        let result = evaluate(reading(130, at: t0 + 1800), previous: before, preferences: prefs)
+        #expect(result.alerts.map(\.kind) == [.threshold])
+        #expect(result.state.lastSource == .station)
+    }
+
+    // MARK: - Other scales
+
+    /// US AQI 40 while the EEA index is 65 (Poor) and PM10 has been 135 µg/m³ (DAQI 10).
+    private func disagreeing(at date: Date) -> AirQuality {
+        let model = Fixture.model(current: date) { time in
+            Fixture.sample(time, us: 40, eu: 65, dominant: .pm10, concentrations: [.pm10: 135])
+        }
+        return Fixture.station(aqi: 40, at: date, dominant: .pm10, model: model)
+    }
+
+    @Test("Thresholds follow the chosen scale, in its own words")
+    func scaleThreshold() throws {
+        let prefs = NotificationPreferences(thresholdAlertsEnabled: true, thresholdLevel: .sensitive)
+        #expect(evaluate(disagreeing(at: t0), previous: nil, preferences: prefs).alerts.isEmpty)
+
+        let eu = try #require(evaluate(disagreeing(at: t0), previous: nil, preferences: prefs, scale: .euEAQI).alerts.first)
+        #expect(eu.title == "Poor air quality in Paris")
+        #expect(eu.body == "Limit prolonged outdoor exertion. Now European AQI 65, Poor.")
+    }
+
+    @Test("A level the UK scale can't reach is capped at its top band")
+    func ukCap() throws {
+        let prefs = NotificationPreferences(thresholdAlertsEnabled: true, thresholdLevel: .veryUnhealthy)
+        let alert = try #require(evaluate(disagreeing(at: t0), previous: nil, preferences: prefs, scale: .ukDAQI).alerts.first)
+        #expect(alert.title == "Very High air pollution in Paris")
+        #expect(alert.body.hasSuffix("Now UK DAQI 10, Very High."))
+    }
+
     // MARK: - Daily planner
 
     private var utcCalendar: Calendar {
@@ -106,77 +140,68 @@ struct NotificationTests {
         utcCalendar.date(from: DateComponents(year: 2026, month: 10, day: day, hour: hour, minute: minute))!
     }
 
-    private let forecast = [
-        DailyForecast(pollutant: .pm25, day: "2026-10-25", avg: 40, min: 30, max: 55),
-        DailyForecast(pollutant: .o3, day: "2026-10-25", avg: 30, min: 10, max: 40),
-        DailyForecast(pollutant: .pm25, day: "2026-10-26", avg: 85, min: 60, max: 110),
-        DailyForecast(pollutant: .o3, day: "2026-10-26", avg: 95, min: 40, max: 120),
-    ]
+    /// Today (25th) Good from 09:00; tomorrow Good at dawn, then ozone builds to 95 by 15:00.
+    private func forecastReading(now: Date) -> AirQuality {
+        Fixture.modelled(Fixture.model(current: now) { time in
+            let parts = Fixture.utc.dateComponents([.day, .hour], from: time)
+            guard parts.day == 26 else { return Fixture.sample(time, us: 40) }
+            switch parts.hour! {
+            case ..<8: return Fixture.sample(time, us: 35, dominant: .o3)
+            case 15: return Fixture.sample(time, us: 95, dominant: .o3)
+            default: return Fixture.sample(time, us: 70, dominant: .o3)
+            }
+        })
+    }
 
-    @Test("Daily verdict fires at the chosen time with that day's forecast")
+    @Test("Daily verdict fires at the chosen time with the day's worst forecast hour")
     func dailyVerdict() throws {
         let prefs = NotificationPreferences(dailyVerdictEnabled: true, dailyVerdictMinutes: 7 * 60 + 30)
         // It's 09:00 on the 25th, so the next 07:30 is tomorrow, the 26th.
         let planned = DailyPlanner.plan(
-            for: reading(40, at: date(day: 25, hour: 8), forecast: forecast),
+            for: forecastReading(now: date(day: 25, hour: 9)),
             preferences: prefs, profile: .none, scale: .usEPA,
             now: date(day: 25, hour: 9), calendar: utcCalendar
         )
         let verdict = try #require(planned.first { $0.id == DailyPlanner.dailyVerdictID })
         #expect(verdict.fireDate == date(day: 26, hour: 7, minute: 30))
         #expect(verdict.title == "Today's air: Moderate")
-        #expect(verdict.body.contains("Forecast: US EPA AQI 95 (O₃)"))
+        #expect(verdict.body == "Fine for most, ozone rising this afternoon. Forecast at worst, around 3 PM: US EPA AQI 95 (O₃).")
     }
 
-    @Test("Best window only on days that aren't Good, timed by the pollutant")
+    @Test("Without forecast hours, the daily verdict uses the latest reading — only for today")
+    func dailyVerdictLatest() throws {
+        let prefs = NotificationPreferences(dailyVerdictEnabled: true, dailyVerdictMinutes: 21 * 60 + 30)
+        let planned = DailyPlanner.plan(
+            for: forecastReading(now: date(day: 25, hour: 9)),
+            preferences: prefs, profile: .none, scale: .usEPA,
+            now: date(day: 25, hour: 9), calendar: utcCalendar
+        )
+        let verdict = try #require(planned.first { $0.id == DailyPlanner.dailyVerdictID })
+        #expect(verdict.body.hasSuffix("Latest reading: US EPA AQI 40 (PM2.5)."))
+    }
+
+    @Test("Best window only when part of the day is clearly better")
     func bestWindow() throws {
         let prefs = NotificationPreferences(bestWindowEnabled: true)
-        // Today (25th) is Good → nothing today; tomorrow is ozone-driven Moderate → 07:00.
+        // Today is Good throughout → nothing; tomorrow's dawn is the cleanest → 06:00.
         let planned = DailyPlanner.plan(
-            for: reading(40, at: date(day: 25, hour: 8), forecast: forecast),
+            for: forecastReading(now: date(day: 25, hour: 9)),
             preferences: prefs, profile: .none, scale: .usEPA,
             now: date(day: 25, hour: 9), calendar: utcCalendar
         )
         let window = try #require(planned.first { $0.id == DailyPlanner.bestWindowID })
-        #expect(window.fireDate == date(day: 26, hour: 7))
-        #expect(window.title == "Best time outside: Before 10 AM")
-        #expect(window.body == "Ozone builds through the afternoon.")
+        #expect(window.fireDate == date(day: 26, hour: 6))
+        #expect(window.title == "Best time outside: 6–8 AM")
+        #expect(window.body == "The cleanest air left today.")
     }
 
     @Test("Nothing planned when nothing is enabled")
     func nothingEnabled() {
         let planned = DailyPlanner.plan(
-            for: reading(40, at: date(day: 25, hour: 8), forecast: forecast),
+            for: forecastReading(now: date(day: 25, hour: 9)),
             preferences: NotificationPreferences(), profile: .none, scale: .usEPA,
             now: date(day: 25, hour: 9), calendar: utcCalendar
         )
         #expect(planned.isEmpty)
-    }
-}
-
-@Suite("Alert wording across scales")
-struct AlertWordingTests {
-    @Test("On a non-EPA scale the alert states both figures and a neutral title")
-    func mixedScales() throws {
-        let reading = AirQuality(
-            aqi: 95,
-            dominantPollutant: .pm10,
-            pollutants: [Pollutant(kind: .pm10, aqi: 95)],
-            weather: Weather(),
-            station: Station(id: 1, name: "Delhi", coordinate: Coordinate(latitude: 28.6, longitude: 77.2), url: ""),
-            forecast: [],
-            timestamp: Date(timeIntervalSince1970: 1_792_900_000),
-            attribution: [],
-            timeZoneOffset: 19_800
-        )
-        let result = AlertEngine.evaluate(
-            reading: reading, locationName: "your area", locationKey: "current", previous: nil,
-            preferences: NotificationPreferences(thresholdAlertsEnabled: true, thresholdLevel: .moderate),
-            profile: .none, scale: .ukDAQI, now: reading.timestamp
-        )
-        let alert = try #require(result.alerts.first)
-        #expect(alert.title == "Air quality alert in your area")
-        // PM10 at EPA 95 ≈ 135 µg/m³: Very High on DAQI, Moderate on EPA.
-        #expect(alert.body.contains("UK DAQI 10 (Very High); US EPA AQI 95 (Moderate)"))
     }
 }

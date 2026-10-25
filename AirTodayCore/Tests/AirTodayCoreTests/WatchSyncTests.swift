@@ -12,32 +12,32 @@ struct WatchSyncTests {
             pollutants: [],
             weather: Weather(),
             station: Station(id: 1, name: "Test", coordinate: Coordinate(latitude: 0, longitude: 0), url: ""),
-            forecast: [],
             timestamp: Date(timeIntervalSince1970: seconds),
             attribution: []
         )
     }
 
-    private func context(for quality: AirQuality, extra: [String: Any] = [:]) throws -> [String: Any] {
-        var context = extra
-        context["reading"] = try JSONEncoder().encode(quality)
+    private func context(for quality: AirQuality, fetchedAt: TimeInterval? = nil) throws -> [String: Any] {
+        var context: [String: Any] = ["reading": try JSONEncoder().encode(quality)]
+        context["fetchedAt"] = fetchedAt
         return context
     }
 
-    @Test("A newer iPhone reading replaces the Watch's")
+    @Test("A reading the iPhone fetched later replaces the Watch's")
     func newerWins() throws {
         SharedDataStore.clear()
-        SharedDataStore.save(reading(aqi: 40, at: 1_000), queryCoordinate: nil)
-        WatchSync.apply(try context(for: reading(aqi: 90, at: 2_000)))
+        SharedDataStore.save(reading(aqi: 40, at: 1_000), queryCoordinate: nil, fetchedAt: Date(timeIntervalSince1970: 1_500))
+        WatchSync.apply(try context(for: reading(aqi: 90, at: 900), fetchedAt: 2_000))
         #expect(SharedDataStore.load()?.aqi == 90)
+        #expect(SharedDataStore.lastUpdated() == Date(timeIntervalSince1970: 2_000))
         SharedDataStore.clear()
     }
 
-    @Test("An older iPhone reading doesn't overwrite a fresher Watch one")
+    @Test("A reading the iPhone fetched earlier doesn't overwrite a fresher Watch one")
     func olderLoses() throws {
         SharedDataStore.clear()
-        SharedDataStore.save(reading(aqi: 40, at: 3_000), queryCoordinate: nil)
-        WatchSync.apply(try context(for: reading(aqi: 90, at: 2_000)))
+        SharedDataStore.save(reading(aqi: 40, at: 1_000), queryCoordinate: nil, fetchedAt: Date(timeIntervalSince1970: 3_000))
+        WatchSync.apply(try context(for: reading(aqi: 90, at: 2_500), fetchedAt: 2_000))
         #expect(SharedDataStore.load()?.aqi == 40)
         SharedDataStore.clear()
     }

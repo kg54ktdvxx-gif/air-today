@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// US EPA AQI categories with breakpoints and associated colors.
-public enum AQILevel: Int, CaseIterable, Codable, Sendable {
+/// US EPA AQI categories with breakpoints and associated colors. Also the whole-number
+/// levels of the severity ladder every scale maps onto (`Severity`).
+public enum AQILevel: Int, CaseIterable, Codable, Sendable, Comparable {
     case good
     case moderate
     case sensitive
@@ -18,6 +19,10 @@ public enum AQILevel: Int, CaseIterable, Codable, Sendable {
         case 201...300: self = .veryUnhealthy
         default: self = .hazardous
         }
+    }
+
+    public static func < (lhs: AQILevel, rhs: AQILevel) -> Bool {
+        lhs.rawValue < rhs.rawValue
     }
 
     public var label: String {

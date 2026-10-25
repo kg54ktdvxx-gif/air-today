@@ -94,7 +94,7 @@
         <p class="subtitle">Air Today &mdash; Effective October 25, 2026</p>
 
         <div class="highlight">
-            <strong>The short version:</strong> Air Today does not collect, store, or share your personal data. Your settings and health answers stay on your devices; your location is only used to ask WAQI for nearby readings.
+            <strong>The short version:</strong> Air Today does not collect, store, or share your personal data. Your settings and health answers stay on your devices; your location is only used to ask WAQI and Open-Meteo for the air where you are, and Apple Maps for your town's name.
         </div>
 
         <h2>Overview</h2>
@@ -105,20 +105,22 @@
         <p>The app may access the following information on your device:</p>
         <ul>
             <li><strong>Location (optional):</strong> If you grant permission, the app uses Apple's Core Location framework on your iPhone (and on your Apple Watch, if you use the Watch app) to determine your current location and show nearby air quality data. You can deny or revoke this permission at any time in Settings. The app works without location access — WAQI then estimates your area from your IP address, and you can search for and save locations manually.</li>
-            <li><strong>Health profile (optional):</strong> During setup or in Settings you can say whether you have asthma or a respiratory condition, are sensitive to ozone, or have children at home. These answers tailor the advice the app shows. They are stored only on your device and your paired Apple Watch, and are never sent to WAQI or any other server.</li>
-            <li><strong>Saved locations:</strong> You can save up to 6 locations within the app. These are stored locally on your device and are never transmitted to any server other than as the location of a WAQI data request.</li>
+            <li><strong>Health profile (optional):</strong> During setup or in Settings you can say whether you have asthma or a respiratory condition, are sensitive to ozone, or have children at home. These answers tailor the advice the app shows. They are stored only on your device and your paired Apple Watch, and are never sent to WAQI, Open-Meteo or any other server.</li>
+            <li><strong>Saved locations:</strong> You can save up to 6 locations within the app. These are stored locally on your device and are never transmitted to any server other than as the location of a WAQI or Open-Meteo data request.</li>
         </ul>
 
         <h2>How Data Is Used</h2>
-        <p>Your location, when provided, is used solely to request air quality readings from the World Air Quality Index (WAQI) API for the area near you. The location is sent directly from your device to the WAQI API as part of the data request — it does not pass through any server owned or operated by the developer.</p>
-        <p>Saved locations, preferences and your health profile are stored on-device using standard iOS storage. Data is shared between the app, its widgets, Live Activity and Apple Watch app through an App Group container, and between your iPhone and Apple Watch using Apple's WatchConnectivity — directly between your own devices. The coordinates of your last check are kept on your device so widgets and background updates can stay current.</p>
-        <p><strong>Widgets, complications and Live Activities</strong> read data stored on your device. When it is more than an hour old, they request a fresh reading from WAQI in the same way the app does.</p>
+        <p>Your location, when provided, is used solely to request air quality data for the area near you: station readings from the World Air Quality Index (WAQI) API, and estimates, forecasts and weather from the Open-Meteo API (with the coordinates rounded to about 1 km). The location is sent directly from your device as part of each data request — it does not pass through any server owned or operated by the developer.</p>
+        <p>To show the name of your town, your device asks Apple Maps for the place at your location. Apple handles that request under <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple's privacy policy</a>.</p>
+        <p>Saved locations, preferences and your health profile are stored on-device using standard iOS storage. Data is shared between the app, its widgets and Apple Watch app through an App Group container, and between your iPhone and Apple Watch using Apple's WatchConnectivity — directly between your own devices. The coordinates of your last check are kept on your device so widgets and background updates can stay current.</p>
+        <p><strong>Widgets and complications</strong> read data stored on your device. When it is more than an hour old, they request a fresh reading in the same way the app does.</p>
         <p><strong>Notifications</strong> (the daily verdict, air-quality alerts, best-time and spike alerts) are created on your device from data the app has fetched. Air Today does not use a push notification server.</p>
         <p><strong>Siri and Shortcuts:</strong> when you ask Siri about the air, Air Today answers using the same data as the app. Siri requests are handled by Apple under Apple's privacy policy.</p>
 
         <h2>Third-Party Services</h2>
         <p>Air Today uses the <a href="https://aqicn.org/api/" target="_blank" rel="noopener">World Air Quality Index (WAQI) API</a> to retrieve air quality data. When the app fetches air quality information, it sends a network request that includes the coordinates or name of the location you are viewing. This request goes directly from your device to the WAQI service.</p>
         <p>The WAQI API is operated by the World Air Quality Index project. Their use of data is governed by their own privacy policy, available at <a href="https://aqicn.org/privacy/" target="_blank" rel="noopener">aqicn.org/privacy</a>.</p>
+        <p>Air Today also uses the <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> air quality and weather APIs, whose air quality data comes from the Copernicus Atmosphere Monitoring Service (CAMS). These requests include the location you are viewing, rounded to about 1 km, and go directly from your device to Open-Meteo. Open-Meteo states that its server logs, which can include request coordinates, are not shared and are deleted after 90 days; see <a href="https://open-meteo.com/en/terms#privacy" target="_blank" rel="noopener">open-meteo.com/en/terms</a>.</p>
         <p>Air Today does not integrate any other third-party services, SDKs, analytics platforms, or advertising networks.</p>
 
         <h2>Data Retention</h2>

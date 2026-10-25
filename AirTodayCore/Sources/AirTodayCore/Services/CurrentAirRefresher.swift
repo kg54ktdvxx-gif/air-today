@@ -5,14 +5,13 @@ import Foundation
 public enum CurrentAirRefresher {
     /// Fetches for the coordinate the last foreground reading used (or WAQI's IP
     /// lookup if there's none) and updates the shared cache.
-    public static func refresh(
-        service: AirQualityServiceProtocol = AirQualityService(token: AppConstants.waqiToken)
-    ) async throws -> AirQuality {
+    public static func refresh(reader: AirReadingService = AirReadingService()) async throws -> AirQuality {
         let coordinate = SharedDataStore.queryCoordinate()
-        let quality: AirQuality = if let coordinate {
-            try await service.fetchCurrent(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        } else {
-            try await service.fetchCurrent(city: "here")
+        let previous = SharedDataStore.load()
+        var quality = try await reader.reading(at: coordinate)
+        // Same coordinate, same town: the name was looked up in the foreground.
+        if coordinate != nil {
+            quality.placeName = previous?.placeName
         }
         SharedDataStore.save(quality, queryCoordinate: coordinate)
         return quality
@@ -22,12 +21,14 @@ public enum CurrentAirRefresher {
     /// falls back to the cache if fetching fails. Nil only with no cache and no network.
     public static func latest(
         maxAge: TimeInterval = AppConstants.cacheTTL,
-        service: AirQualityServiceProtocol = AirQualityService(token: AppConstants.waqiToken)
+        reader: AirReadingService = AirReadingService()
     ) async -> AirQuality? {
         let cached = SharedDataStore.load()
-        if let cached, let fetched = SharedDataStore.lastUpdated(), Date().timeIntervalSince(fetched) < maxAge {
+        // A reading without the forecast is worth another try sooner.
+        let limit = cached?.model == nil ? min(maxAge, AppConstants.incompleteReadingRetry) : maxAge
+        if let cached, let fetched = SharedDataStore.lastUpdated(), Date().timeIntervalSince(fetched) < limit {
             return cached
         }
-        return (try? await refresh(service: service)) ?? cached
+        return (try? await refresh(reader: reader)) ?? cached
     }
 }

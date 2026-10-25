@@ -1,15 +1,13 @@
 import SwiftUI
 import AirTodayCore
 
-/// Settings screen — locations, preferences, about.
+/// Settings: places, alerts, health, scale, units, accessibility, about.
 public struct SettingsScreen: View {
     let locationManager: LocationManager
     @State private var showingSearch = false
-    @State private var showingClearConfirmation = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingAdviceInfo = false
     @State private var pendingDeleteOffsets: IndexSet?
-    @State private var cacheCleared = false
-    @AppStorage("parallax_enabled") private var parallaxEnabled = true
     @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
     @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
 
@@ -32,37 +30,8 @@ public struct SettingsScreen: View {
 
     public var body: some View {
         List {
-            Section("Locations") {
-                ForEach(locationManager.locations) { location in
-                    HStack {
-                        if location.isCurrentLocation {
-                            Label("Current Location", systemImage: "location.fill")
-                        } else {
-                            Label(location.name, systemImage: "mappin")
-                        }
-
-                        Spacer()
-
-                        if let quality = locationManager.store(for: location).currentAQI {
-                            Text("\(quality.aqi)")
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(quality.level.color)
-                        }
-                    }
-                }
-                .onDelete { offsets in
-                    pendingDeleteOffsets = offsets
-                    showingDeleteConfirmation = true
-                }
-
-                if locationManager.canAddLocation {
-                    Button {
-                        showingSearch = true
-                    } label: {
-                        Label("Add Location", systemImage: "plus")
-                    }
-                }
-            }
+            placesSection
+            notificationsSection
 
             Section {
                 Toggle(isOn: $hasRespiratoryCondition) {
@@ -80,8 +49,6 @@ public struct SettingsScreen: View {
                 Text("Tailors verdicts and activity advice. Stays on this device.")
             }
 
-            notificationsSection
-
             Section {
                 Picker(selection: $scale) {
                     ForEach(AQIScale.allCases, id: \.self) { scale in
@@ -93,72 +60,30 @@ public struct SettingsScreen: View {
             } header: {
                 Text("Air Quality Scale")
             } footer: {
-                Text("World Air Quality Index stations report on the US EPA scale. EU CAQI and UK DAQI numbers are worked out from those readings, so they're close estimates rather than official figures. Verdicts and activity advice always follow the US EPA levels.")
+                Text("The verdict, activity advice and alerts follow the scale you choose. The European AQI and UK DAQI are worked out from CAMS forecast concentrations with each index's own averaging; the US EPA AQI comes from a nearby station when it's recent, otherwise from CAMS.")
             }
 
-            Section {
+            Section("Units") {
                 Picker(selection: $temperatureUnit) {
                     ForEach(TemperatureUnit.allCases, id: \.self) { unit in
                         Text(unit.displayName).tag(unit)
                     }
                 } label: {
-                    Label("Temperature Unit", systemImage: "thermometer.medium")
-                }
-
-                Toggle(isOn: $parallaxEnabled) {
-                    Label("Parallax Effect", systemImage: "move.3d")
-                }
-                .disabled(reduceVisualEffects)
-
-                Toggle(isOn: $reduceVisualEffects) {
-                    Label("Reduce Visual Effects", systemImage: "sparkles")
-                }
-            } header: {
-                Text("Display")
-            } footer: {
-                Text("Reduce Visual Effects turns off the haze, drifting particles and parallax — easier on the battery and on the eyes. Reduce Motion in iOS Settings is respected automatically.")
-            }
-
-            Section("About") {
-                HStack {
-                    Label("Version", systemImage: "info.circle")
-                    Spacer()
-                    Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
-                        .foregroundStyle(.white.opacity(DS.opacityTertiary))
-                }
-
-                NavigationLink(value: AppRoute.privacyPolicy) {
-                    Label("Privacy Policy", systemImage: "hand.raised")
-                }
-
-                Link(destination: URL(string: "https://waqi.info")!) {
-                    Label("World Air Quality Index", systemImage: "globe")
-                }
-
-                Link(destination: URL(string: "mailto:busiest-21.qualm@icloud.com")!) {
-                    Label("Contact & Feedback", systemImage: "envelope")
+                    Label("Temperature", systemImage: "thermometer.medium")
                 }
             }
 
             Section {
-                Button(role: .destructive) {
-                    showingClearConfirmation = true
-                } label: {
-                    Label(cacheCleared ? "Cache Cleared" : "Clear Cache", systemImage: cacheCleared ? "checkmark" : "trash")
+                Toggle(isOn: $reduceVisualEffects) {
+                    Label("Reduce Visual Effects", systemImage: "sparkles")
                 }
-                .disabled(cacheCleared)
+            } header: {
+                Text("Accessibility")
             } footer: {
-                if let lastUpdated = SharedDataStore.lastUpdated() {
-                    Text("Last synced \(lastUpdated, style: .relative) ago")
-                }
+                Text("Turns off the haze, drifting particles and parallax — easier on the battery and on the eyes. Reduce Motion in iOS Settings is respected automatically.")
             }
 
-            Section("Data") {
-                if let store = locationManager.selectedStore,
-                   let quality = store.currentAQI {
-                    AttributionView(attributions: quality.attribution)
-                }
-            }
+            aboutSection
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
@@ -166,13 +91,14 @@ public struct SettingsScreen: View {
         .sheet(isPresented: $showingSearch) {
             LocationSearchView(locationManager: locationManager)
         }
-        .confirmationDialog("Clear Cache", isPresented: $showingClearConfirmation) {
-            Button("Clear Cache", role: .destructive) {
-                clearCache()
-                withAnimation(DS.Motion.quick) { cacheCleared = true }
-            }
-        } message: {
-            Text("This will remove cached air quality data. Fresh data will be fetched on next refresh.")
+        .sheet(isPresented: $showingAdviceInfo) {
+            AdviceInfoSheet(scale: scale)
+        }
+        .onChange(of: scale) {
+            // Not every scale reaches every level (UK DAQI tops out at Unhealthy).
+            if let top = scale.alertLevels.last, thresholdLevel > top { thresholdLevel = top }
+            // Scheduled notifications are worded on the scale.
+            Task { await AlertCoordinator.preferencesChanged() }
         }
         .confirmationDialog("Remove Location", isPresented: $showingDeleteConfirmation) {
             Button("Remove", role: .destructive) {
@@ -186,6 +112,77 @@ public struct SettingsScreen: View {
             }
         } message: {
             Text("This location will be removed from your list.")
+        }
+    }
+
+    // MARK: - Places
+
+    private var placesSection: some View {
+        Section("Places") {
+            ForEach(locationManager.locations) { location in
+                HStack {
+                    if location.isCurrentLocation {
+                        Label(locationManager.store(for: location).currentAQI?.placeName ?? "My Location", systemImage: "location.fill")
+                    } else {
+                        Label(location.name, systemImage: "mappin")
+                    }
+
+                    Spacer()
+
+                    if let quality = locationManager.store(for: location).currentAQI {
+                        let shown = scale.displayReading(for: quality)
+                        Text("\(shown.scale.compactName) \(shown.reading.value)")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(shown.reading.band.color)
+                    }
+                }
+            }
+            .onDelete { offsets in
+                pendingDeleteOffsets = offsets
+                showingDeleteConfirmation = true
+            }
+
+            if locationManager.canAddLocation {
+                Button {
+                    showingSearch = true
+                } label: {
+                    Label("Add Location", systemImage: "plus")
+                }
+            }
+        }
+    }
+
+    // MARK: - About
+
+    private var aboutSection: some View {
+        Section {
+            HStack {
+                Label("Version", systemImage: "info.circle")
+                Spacer()
+                Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
+                    .foregroundStyle(.white.opacity(DS.opacityTertiary))
+            }
+
+            Button {
+                showingAdviceInfo = true
+            } label: {
+                Label("About This Advice", systemImage: "questionmark.circle")
+            }
+
+            NavigationLink(value: AppRoute.privacyPolicy) {
+                Label("Privacy Policy", systemImage: "hand.raised")
+            }
+
+            Link(destination: URL(string: "mailto:busiest-21.qualm@icloud.com")!) {
+                Label("Contact & Feedback", systemImage: "envelope")
+            }
+        } header: {
+            Text("About")
+        } footer: {
+            VStack(alignment: .leading, spacing: DS.spacingXS) {
+                Text("Station measurements from the [World Air Quality Index Project](https://waqi.info). Estimates, forecasts and weather from [Open-Meteo.com](https://open-meteo.com) (CC BY 4.0).")
+                Text("Contains modified Copernicus Atmosphere Monitoring Service information.")
+            }
         }
     }
 
@@ -205,8 +202,8 @@ public struct SettingsScreen: View {
             }
             if thresholdAlerts {
                 Picker("Alert from", selection: $thresholdLevel) {
-                    ForEach([AQILevel.moderate, .sensitive, .unhealthy, .veryUnhealthy], id: \.self) { level in
-                        Text(level.label).tag(level)
+                    ForEach(scale.alertLevels, id: \.self) { level in
+                        Text(scale.bandName(for: level)).tag(level)
                     }
                 }
             }
@@ -219,7 +216,7 @@ public struct SettingsScreen: View {
                 Label("Sudden spikes", systemImage: "flame")
             }
         } header: {
-            Text("Notifications")
+            Text("Alerts")
         } footer: {
             if notificationsDenied {
                 VStack(alignment: .leading, spacing: DS.spacingXS) {
@@ -232,7 +229,7 @@ public struct SettingsScreen: View {
                     .font(.footnote.weight(.semibold))
                 }
             } else {
-                Text("Alerts cover every saved location. iOS decides how often Air Today can check in the background, so they can arrive a little late. The daily verdict and best time use today's forecast where you are.")
+                Text("Alerts follow the \(scale.shortName) and cover every saved place. iOS decides how often Air Today can check in the background, so they can arrive a little late. The daily verdict and best time use the hourly forecast where you are.")
             }
         }
         .onChange(of: [dailyVerdict, thresholdAlerts, bestWindow, spikeAlerts]) { old, new in
@@ -260,9 +257,5 @@ public struct SettingsScreen: View {
             let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
             dailyVerdictMinutes = (parts.hour ?? 7) * 60 + (parts.minute ?? 30)
         }
-    }
-
-    private func clearCache() {
-        SharedDataStore.clear()
     }
 }

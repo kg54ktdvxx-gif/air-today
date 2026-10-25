@@ -13,7 +13,8 @@ struct AQIWidgetEntry: TimelineEntry {
     let scale: AQIScale
     let profile: HealthProfile
 
-    var level: AQILevel { quality?.level ?? .good }
+    /// Severity on the chosen scale; picks the background photo.
+    var level: AQILevel { reading?.reading.severityLevel ?? .good }
 
     var isStale: Bool {
         guard let fetchedAt else { return true }
@@ -21,7 +22,7 @@ struct AQIWidgetEntry: TimelineEntry {
     }
 
     var guidance: ActivityGuidance? {
-        quality.map { ActivityGuidanceService().guidance(for: $0, at: date, profile: profile) }
+        quality.map { ActivityGuidanceService().guidance(for: $0, scale: scale, at: date, profile: profile) }
     }
 
     var reading: (scale: AQIScale, reading: ScaledReading)? {
@@ -35,10 +36,11 @@ struct AQIWidgetEntry: TimelineEntry {
             dominantPollutant: .pm25,
             pollutants: [Pollutant(kind: .pm25, aqi: 42)],
             weather: Weather(temperature: 18),
-            station: Station(id: 0, name: "Your area", coordinate: Coordinate(latitude: 0, longitude: 0), url: ""),
-            forecast: [],
+            station: nil,
+            source: .model,
             timestamp: .now,
-            attribution: []
+            attribution: [],
+            placeName: "Your area"
         ),
         fetchedAt: .now,
         scale: .usEPA,

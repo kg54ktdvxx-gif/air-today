@@ -2,218 +2,217 @@ import SwiftUI
 import Charts
 import AirTodayCore
 
-/// Swift Charts area graph with AQI threshold lines and a pollutant pill strip.
+/// The hourly forecast for today and tomorrow, then each later day's worst, on the
+/// chosen scale — overall or for one pollutant.
 public struct ForecastGraphCard: View {
-    let forecasts: [DailyForecast]
-    /// The pollutant driving today's AQI, if WAQI names one.
-    let dominantPollutant: Pollutant.Kind?
-    let currentAQI: Int
-    /// Today's level colour, threaded quietly through the chart.
-    let accent: Color
-    /// Values and threshold lines are drawn on this scale.
+    let quality: AirQuality
+    let model: ModelAirData
     let scale: AQIScale
-    @State private var selectedPollutant: Pollutant.Kind
+    /// Today's band colour, threaded quietly through the chart.
+    let accent: Color
+    let now: Date
+    /// Nil is the overall index.
+    @State private var selectedPollutant: Pollutant.Kind?
 
-    private let analyzer = ForecastAnalyzer()
-
-    public init(
-        forecasts: [DailyForecast],
-        dominantPollutant: Pollutant.Kind?,
-        currentAQI: Int,
-        accent: Color,
-        scale: AQIScale = .usEPA
-    ) {
-        self.forecasts = forecasts
-        self.dominantPollutant = dominantPollutant
-        self.currentAQI = currentAQI
-        self.accent = accent
+    /// Nil without model data: there's no forecast to draw.
+    public init?(quality: AirQuality, scale: AQIScale, accent: Color, now: Date = Date()) {
+        guard let model = quality.model else { return nil }
+        self.quality = quality
+        self.model = model
         self.scale = scale
-        _selectedPollutant = State(initialValue: Self.defaultSelection(forecasts: forecasts, dominant: dominantPollutant))
+        self.accent = accent
+        self.now = now
     }
 
-    /// The dominant pollutant when it has a forecast. WAQI only forecasts PM2.5,
-    /// PM10 and O₃, so when NO₂/SO₂/CO drives today's AQI this falls back to the
-    /// first forecast pollutant instead of an empty chart.
-    private static func defaultSelection(forecasts: [DailyForecast], dominant: Pollutant.Kind?) -> Pollutant.Kind {
-        let forecastKinds = Set(forecasts.map(\.pollutant))
-        return dominant.flatMap { forecastKinds.contains($0) ? $0 : nil }
-            ?? Pollutant.Kind.allCases.first { forecastKinds.contains($0) }
-            ?? .pm25
+    private var calendar: Calendar { model.calendar }
+
+    /// The end of tomorrow in the place's time.
+    private var hourlyEnd: Date {
+        let startOfToday = calendar.startOfDay(for: now)
+        return calendar.date(byAdding: .day, value: 2, to: startOfToday) ?? now
     }
 
+    private var series: [(time: Date, value: Int)] {
+        scale.hourlySeries(for: quality, pollutant: selectedPollutant, now: now)
+    }
+
+    private var hourlyPoints: [(time: Date, value: Int)] {
+        series.filter { $0.time < hourlyEnd }
+    }
+
+    /// Each later day's worst hour, for days with most of their hours forecast.
+    private var laterDays: [(day: Date, value: Int)] {
+        let later = series.filter { $0.time >= hourlyEnd }
+        let byDay = Dictionary(grouping: later) { calendar.startOfDay(for: $0.time) }
+        return byDay
+            .filter { $0.value.count >= 12 }
+            .map { (day: $0.key, value: $0.value.map(\.value).max() ?? 0) }
+            .sorted { $0.day < $1.day }
+    }
+
+    /// Every 6 hours on the place's clock (midnight, 6, noon, 18) across the hourly range.
+    private var axisDates: [Date] {
+        let start = calendar.startOfDay(for: now)
+        return (0...8).compactMap { calendar.date(byAdding: .hour, value: $0 * 6, to: start) }
+            .filter { $0 >= (hourlyPoints.first?.time ?? now) && $0 <= hourlyEnd }
+    }
+
+    /// When the headline is a station's measurement and the model's estimate for the
+    /// hour falls in another band, says so — otherwise the chart seems to contradict
+    /// the number above it.
+    private var sourceNote: String? {
+        guard selectedPollutant == nil,
+              quality.source == .station,
+              scale == .usEPA,
+              let modelNow = hourlyPoints.first?.value,
+              scale.band(forValue: modelNow).name != scale.band(forValue: quality.aqi).name
+        else { return nil }
+        return "The forecast is an estimate for the wider area: \(modelNow) now, where the station measures \(quality.aqi)."
+    }
+
+    /// Pollutants with a forecast on this scale, in display order.
     private var availablePollutants: [Pollutant.Kind] {
-        let kinds = Set(forecasts.map(\.pollutant))
-        return Pollutant.Kind.allCases.filter { kinds.contains($0) }
-    }
-
-    /// The selected pollutant's forecast, converted to the chosen scale.
-    private var chartPoints: [ForecastPoint] {
-        analyzer.forecastPoints(from: forecasts)
-            .filter { $0.pollutant == selectedPollutant }
-            .sorted { $0.date < $1.date }
-            .map { point in
-                let convert = { (aqi: Int) in
-                    Int((scale.subIndex(for: point.pollutant, epaAQI: Double(aqi)) ?? Double(aqi)).rounded())
-                }
-                return ForecastPoint(
-                    pollutant: point.pollutant,
-                    date: point.date,
-                    avg: convert(point.avg),
-                    min: convert(point.min),
-                    max: convert(point.max)
-                )
-            }
-    }
-
-    private var improvement: String? {
-        analyzer.improvementSummary(
-            forecasts: forecasts,
-            currentAQI: currentAQI,
-            pollutant: selectedPollutant
-        )
+        let upcoming = model.upcoming(from: now)
+        let kinds: Set<Pollutant.Kind> = switch scale {
+        case .usEPA: Set(upcoming.flatMap(\.usSubIndices.keys))
+        case .euEAQI: Set(upcoming.flatMap(\.europeanSubIndices.keys))
+        case .ukDAQI: Set(upcoming.flatMap(\.concentrations.keys))
+        }
+        return Pollutant.Kind.allCases.filter { kinds.contains($0) && scale.pollutants.contains($0) }
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             headerSection
             chartSection
+            if !laterDays.isEmpty {
+                laterDaysRow
+            }
         }
         .clipShape(RoundedRectangle(cornerRadius: DS.cornerRadius))
         .background { DS.cardBackground }
-        // New data (a refresh, or GPS replacing the IP lookup) can change what
-        // drives the AQI; the chart should open on that pollutant again.
-        .onChange(of: dominantPollutant) {
-            selectedPollutant = Self.defaultSelection(forecasts: forecasts, dominant: dominantPollutant)
-        }
     }
 
     // MARK: - Header
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: DS.spacingSM) {
-            HStack {
-                Text("Forecast")
-                    .font(.headline)
-                    .foregroundStyle(.white)
+            Text("Forecast")
+                .font(.headline)
+                .foregroundStyle(.white)
+                .accessibilityAddTraits(.isHeader)
 
-                Spacer()
-
-                if let improvement {
-                    Text(improvement)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.green)
-                        .padding(.horizontal, DS.spacingSM)
-                        .padding(.vertical, DS.spacingXS)
-                        .background(.green.opacity(0.15), in: Capsule())
+            ScrollView(.horizontal) {
+                HStack(spacing: DS.spacingSM) {
+                    pill("Overall", selected: selectedPollutant == nil, accessibility: "Overall \(scale.shortName)") {
+                        selectedPollutant = nil
+                    }
+                    ForEach(availablePollutants) { kind in
+                        pill(kind.displayName, selected: selectedPollutant == kind, accessibility: kind.description) {
+                            selectedPollutant = kind
+                        }
+                    }
                 }
             }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
 
-            pollutantStrip
+            if let sourceNote {
+                Text(sourceNote)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(.horizontal, DS.spacingLG)
         .padding(.top, DS.cardHeaderTop)
         .padding(.bottom, DS.cardHeaderBottom)
     }
 
-    // MARK: - Pollutant Strip
-
-    private var pollutantStrip: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: DS.spacingSM) {
-                ForEach(availablePollutants) { kind in
-                    pollutantPill(kind)
-                }
-            }
-        }
-        .scrollIndicators(.hidden)
-        .scrollBounceBehavior(.basedOnSize)
-    }
-
-    private func pollutantPill(_ kind: Pollutant.Kind) -> some View {
-        let isSelected = kind == selectedPollutant
-        let isDominant = kind == dominantPollutant
-
-        return Button {
-            withAnimation(DS.Motion.quick) { selectedPollutant = kind }
+    private func pill(_ title: String, selected: Bool, accessibility: String, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(DS.Motion.quick) { action() }
         } label: {
-            HStack(spacing: 6) {
-                if isDominant {
-                    // Marks the pollutant driving today's AQI.
-                    Circle()
-                        .fill(accent)
-                        .frame(width: 6, height: 6)
-                }
-                Text(kind.displayName)
-            }
-            .font(.system(.caption, design: .rounded, weight: .semibold))
-            .foregroundStyle(.white.opacity(isSelected ? 1 : DS.opacitySecondary))
-            .padding(.horizontal, DS.spacingMD)
-            .padding(.vertical, 6)
-            .background(Capsule().fill(.white.opacity(isSelected ? 0.2 : 0.06)))
-            .overlay(Capsule().strokeBorder(.white.opacity(isSelected ? 0.35 : 0.12)))
-            .contentShape(Capsule())
+            Text(title)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(.white.opacity(selected ? 1 : DS.opacitySecondary))
+                .padding(.horizontal, DS.spacingMD)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(.white.opacity(selected ? 0.2 : 0.06)))
+                .overlay(Capsule().strokeBorder(.white.opacity(selected ? 0.35 : 0.12)))
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .sensoryFeedback(.selection, trigger: isSelected) { _, new in new }
-        .accessibilityLabel(isDominant ? "\(kind.description), driving today's AQI" : kind.description)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .sensoryFeedback(.selection, trigger: selected) { _, new in new }
+        .accessibilityLabel(accessibility)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: - Chart
 
     private var chartSection: some View {
-        Chart {
-            ForEach(chartPoints) { point in
+        let points = hourlyPoints
+        return Chart {
+            ForEach(points, id: \.time) { point in
                 AreaMark(
-                    x: .value("Day", point.date, unit: .day),
-                    yStart: .value("Min", point.min),
-                    yEnd: .value("Max", point.max)
+                    x: .value("Hour", point.time),
+                    yStart: .value("Base", 0),
+                    yEnd: .value(scale.compactName, point.value)
                 )
+                .interpolationMethod(.monotone)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [accent.opacity(0.32), accent.opacity(0.08)],
+                        colors: [accent.opacity(0.32), accent.opacity(0.04)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
-                // Each day's PointMark carries the spoken summary.
-                .accessibilityHidden(true)
 
                 LineMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("AQI", point.avg)
+                    x: .value("Hour", point.time),
+                    y: .value(scale.compactName, point.value)
                 )
+                .interpolationMethod(.monotone)
                 .foregroundStyle(accent.mix(with: .white, by: 0.6).opacity(DS.opacityPrimary))
                 .lineStyle(StrokeStyle(lineWidth: 2))
-                .accessibilityHidden(true)
+            }
 
-                PointMark(
-                    x: .value("Day", point.date, unit: .day),
-                    y: .value("AQI", point.avg)
-                )
-                .foregroundStyle(scale.band(forValue: Double(point.avg)).color)
-                .symbolSize(24)
-                .accessibilityLabel(Self.fullDayFormatter.string(from: point.date))
-                .accessibilityValue("\(scale.shortName) \(point.avg), \(scale.band(forValue: Double(point.avg)).longName). Range \(point.min) to \(point.max).")
+            if let first = points.first {
+                PointMark(x: .value("Hour", first.time), y: .value(scale.compactName, first.value))
+                    .foregroundStyle(scale.band(forValue: first.value).color)
+                    .symbolSize(40)
+                    .annotation(position: .top, spacing: 4) {
+                        Text("Now")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                    }
             }
 
             // Band boundaries for the chosen scale
             ForEach(scale.chartThresholds, id: \.label) { threshold in
-                thresholdRule(at: threshold.value, label: threshold.label, color: threshold.color)
+                RuleMark(y: .value(threshold.label, threshold.value))
+                    .foregroundStyle(threshold.color.opacity(DS.opacityTertiary))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .annotation(position: .top, alignment: .leading, spacing: 2) {
+                        Text(threshold.label)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(threshold.color.opacity(DS.opacitySecondary))
+                            .padding(.leading, 4)
+                    }
             }
         }
-        .chartYScale(domain: 0...chartYMax)
+        .chartYScale(domain: 0...chartYMax(points))
         .chartXAxis {
-            AxisMarks(values: .stride(by: .day)) { value in
+            AxisMarks(values: axisDates) { value in
                 if let date = value.as(Date.self) {
                     AxisValueLabel {
-                        Text(Self.shortDayFormatter.string(from: date))
+                        Text(axisLabel(date))
                             .font(.caption2)
-                            .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                            .foregroundStyle(.white.opacity(calendar.component(.hour, from: date) == 0 ? DS.opacityPrimary : DS.opacitySecondary))
                     }
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: calendar.component(.hour, from: date) == 0 ? 1 : 0.5))
+                        .foregroundStyle(.white.opacity(DS.opacityDivider))
                 }
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(.white.opacity(DS.opacityDivider))
             }
         }
         .chartYAxis {
@@ -227,47 +226,86 @@ public struct ForecastGraphCard: View {
                 }
             }
         }
+        // Hours and day boundaries in the place's own time.
+        .environment(\.calendar, calendar)
+        .environment(\.timeZone, calendar.timeZone)
         .frame(height: 180)
         .padding(.leading, DS.spacingLG)
         .padding(.trailing, DS.spacingLG + 8)
         .padding(.bottom, DS.spacingLG)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Hourly forecast, today and tomorrow")
+        .accessibilityValue(Self.summary(points, scale: scale, calendar: calendar))
     }
 
-    @ChartContentBuilder
-    private func thresholdRule(at value: Double, label: String, color: Color) -> some ChartContent {
-        RuleMark(y: .value(label, value))
-            .accessibilityHidden(true)
-            .foregroundStyle(color.opacity(DS.opacityTertiary))
-            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-            .annotation(position: .top, alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(color.opacity(DS.opacitySecondary))
-                    .padding(.leading, 4)
-            }
+    /// "6 AM", "12 PM", and the weekday at midnight.
+    private func axisLabel(_ date: Date) -> String {
+        var style = Date.FormatStyle(locale: .current, calendar: calendar, timeZone: calendar.timeZone)
+        style = calendar.component(.hour, from: date) == 0 ? style.weekday(.abbreviated) : style.hour()
+        return date.formatted(style)
     }
 
     /// Room above the highest forecast, never lower than the scale's top threshold line.
-    private var chartYMax: Double {
-        let highest = Double(chartPoints.map(\.max).max() ?? 0)
+    private func chartYMax(_ points: [(time: Date, value: Int)]) -> Double {
+        let highest = Double(points.map(\.value).max() ?? 0)
         switch scale {
         case .usEPA: return max(highest + 20, scale.chartMinimumTop)
-        case .euCAQI: return max(highest + 10, scale.chartMinimumTop)
+        case .euEAQI: return max(highest + 10, scale.chartMinimumTop)
         case .ukDAQI: return max(highest, scale.chartMinimumTop)
         }
     }
 
-    private static let fullDayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = .current
-        f.dateFormat = "EEEE"
-        return f
-    }()
+    /// The spoken version: the range and when the worst and best hours are.
+    static func summary(_ points: [(time: Date, value: Int)], scale: AQIScale, calendar: Calendar) -> String {
+        guard let worst = points.max(by: { $0.value < $1.value }),
+              let best = points.min(by: { $0.value < $1.value })
+        else { return "No forecast" }
+        func when(_ date: Date) -> String {
+            let day = calendar.isDate(date, inSameDayAs: points[0].time) ? "today" : "tomorrow"
+            return "\(ActivityGuidanceService.hourText(date, calendar: calendar)) \(day)"
+        }
+        return "Highest \(worst.value), \(scale.band(forValue: worst.value).longName), at \(when(worst.time)). Lowest \(best.value) at \(when(best.time))."
+    }
 
-    private static let shortDayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "EEE"
-        return f
-    }()
+    // MARK: - Later days
+
+    private var laterDaysRow: some View {
+        VStack(spacing: 0) {
+            DS.divider
+            HStack(spacing: 0) {
+                ForEach(laterDays, id: \.day) { day in
+                    let band = scale.band(forValue: day.value)
+                    VStack(spacing: DS.spacingXS) {
+                        Text(day.day.formatted(Date.FormatStyle(locale: .current, calendar: calendar, timeZone: calendar.timeZone).weekday(.abbreviated)))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                        HStack(spacing: DS.spacingXS) {
+                            Circle()
+                                .fill(band.color)
+                                .frame(width: 8, height: 8)
+                            Text("\(day.value)")
+                                .font(.subheadline.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(.white)
+                        }
+                        Text(band.name)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(DS.opacityTertiary))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(day.day.formatted(Date.FormatStyle(locale: .current, calendar: calendar, timeZone: calendar.timeZone).weekday(.wide)))
+                    .accessibilityValue("At worst \(day.value), \(band.longName)")
+                }
+            }
+            .padding(.vertical, DS.spacingMD)
+            .padding(.horizontal, DS.spacingSM)
+
+            Text("Later days show each day's worst hour.")
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(DS.opacityTertiary))
+                .padding(.bottom, DS.spacingMD)
+        }
+    }
 }

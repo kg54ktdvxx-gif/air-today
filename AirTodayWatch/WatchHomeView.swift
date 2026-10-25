@@ -44,14 +44,14 @@ struct WatchHomeView: View {
     }
 
     private var backgroundGradient: LinearGradient {
-        let color = model.quality?.level.color ?? .gray
+        let color = model.quality.map { scale.displayReading(for: $0).reading.band.color } ?? .gray
         return LinearGradient(colors: [color.opacity(0.55), .black], startPoint: .top, endPoint: .bottom)
     }
 
     // MARK: - Content
 
     private func content(_ quality: AirQuality) -> some View {
-        let guidance = ActivityGuidanceService().guidance(for: quality, profile: profile)
+        let guidance = ActivityGuidanceService().guidance(for: quality, scale: scale, profile: profile)
         let shown = scale.displayReading(for: quality)
 
         return ScrollView {
@@ -83,10 +83,10 @@ struct WatchHomeView: View {
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
 
-                if let window = BestWindow.today(for: quality) {
+                if let window = BestWindow.next(for: quality, scale: scale) {
                     Label {
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("Best time: \(window.headline)")
+                            Text("Best \(window.dayName()): \(window.headline)")
                                 .font(.footnote.weight(.semibold))
                             Text(window.detail)
                                 .font(.caption2)
@@ -107,10 +107,12 @@ struct WatchHomeView: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(quality.station.name)
-                        .font(.caption2)
-                        .lineLimit(2)
-                    Text(quality.timestamp, format: .relative(presentation: .named))
+                    if let place = quality.locationLabel {
+                        Text(place)
+                            .font(.caption2.weight(.semibold))
+                            .lineLimit(2)
+                    }
+                    Text(SourceDescription.text(for: quality, distance: nil, scale: scale))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     if let error = model.errorMessage {

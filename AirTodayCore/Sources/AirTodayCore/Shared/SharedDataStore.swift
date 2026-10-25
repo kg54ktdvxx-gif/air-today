@@ -1,6 +1,6 @@
 import Foundation
 
-/// Shared data store for app, widget, and Live Activity via App Groups.
+/// Shared data store for the app, widgets and Watch sync via App Groups.
 public struct SharedDataStore: Sendable {
     private static var defaults: UserDefaults? {
         UserDefaults(suiteName: AppConstants.appGroupID)
@@ -10,13 +10,16 @@ public struct SharedDataStore: Sendable {
     private static let timestampKey = "cached_timestamp"
     private static let queryCoordinateKey = "cached_query_coordinate"
 
-    /// - Parameter queryCoordinate: the device coordinate the reading was requested for,
-    ///   or nil when it came from WAQI's IP-based lookup.
-    public static func save(_ quality: AirQuality, queryCoordinate: Coordinate?) {
+    /// - Parameters:
+    ///   - queryCoordinate: the device coordinate the reading was requested for,
+    ///     or nil when it came from WAQI's IP-based lookup.
+    ///   - fetchedAt: when it was fetched; earlier than now only for a reading
+    ///     passed on from the iPhone.
+    public static func save(_ quality: AirQuality, queryCoordinate: Coordinate?, fetchedAt: Date = Date()) {
         guard let defaults else { return }
         if let data = try? JSONEncoder().encode(quality) {
             defaults.set(data, forKey: airQualityKey)
-            defaults.set(Date().timeIntervalSince1970, forKey: timestampKey)
+            defaults.set(fetchedAt.timeIntervalSince1970, forKey: timestampKey)
             if let queryCoordinate, let coordinateData = try? JSONEncoder().encode(queryCoordinate) {
                 defaults.set(coordinateData, forKey: queryCoordinateKey)
             } else {
@@ -39,6 +42,16 @@ public struct SharedDataStore: Sendable {
               let data = defaults.data(forKey: queryCoordinateKey)
         else { return nil }
         return try? JSONDecoder().decode(Coordinate.self, from: data)
+    }
+
+    /// The cached reading's town name, if it was looked up within `relocationThreshold`
+    /// of `coordinate` — so a refresh from the same place needn't look it up again.
+    public static func cachedPlaceName(near coordinate: Coordinate) -> String? {
+        guard let name = load()?.placeName,
+              let cachedAt = queryCoordinate(),
+              cachedAt.distance(to: coordinate) <= AppConstants.relocationThreshold
+        else { return nil }
+        return name
     }
 
     public static func lastUpdated() -> Date? {

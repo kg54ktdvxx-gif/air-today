@@ -11,6 +11,7 @@ import AirTodayCore
 struct AtmosphereBackdrop: View {
     struct Layer: Identifiable {
         let id: UUID
+        /// Severity on the chosen scale; picks the photo.
         let level: AQILevel
         let params: AtmosphereParameters
         /// That page's vertical scroll offset.
@@ -22,7 +23,6 @@ struct AtmosphereBackdrop: View {
     let pagePosition: CGFloat
     /// True while the visible page is refreshing; particles brighten and breathe.
     let isStirred: Bool
-    let parallaxEnabled: Bool
     /// False under Reduce Motion or Reduce Visual Effects: no particles, no parallax,
     /// no swipe lag, and the haze holds still.
     let motionEnabled: Bool
@@ -158,7 +158,7 @@ struct AtmosphereBackdrop: View {
     }
 
     private func verticalShift(_ scrollOffset: CGFloat, height: CGFloat) -> CGFloat {
-        guard parallaxEnabled && motionEnabled else { return 0 }
+        guard motionEnabled else { return 0 }
         return min(max(0, scrollOffset) * Self.scrollParallax, height * Self.parallaxHeadroom)
     }
 }

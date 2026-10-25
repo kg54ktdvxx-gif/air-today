@@ -7,7 +7,7 @@ public struct NotificationPreferences: Equatable, Sendable {
     /// Minutes after local midnight for the daily verdict (default 07:30).
     public var dailyVerdictMinutes: Int
     public var thresholdAlertsEnabled: Bool
-    /// Alert when a location reaches this US EPA level or worse.
+    /// Alert when a location reaches this severity level or worse, on the chosen scale.
     public var thresholdLevel: AQILevel
     public var bestWindowEnabled: Bool
     public var spikeAlertsEnabled: Bool
@@ -39,6 +39,26 @@ public struct NotificationPreferences: Equatable, Sendable {
         public static let thresholdLevel = "notify_threshold_level"
         public static let bestWindow = "notify_best_window"
         public static let spikeAlerts = "notify_spikes"
+        /// Set once the alerts step (onboarding) or offer (updating from 1.1) has been seen.
+        public static let alertsOffered = "notify_alerts_offered"
+    }
+
+    /// The level to suggest: the sensitive-groups band for anyone who told us about a
+    /// health reason, the next band up otherwise.
+    public static func suggestedThreshold(for profile: HealthProfile) -> AQILevel {
+        profile == .none ? .unhealthy : .sensitive
+    }
+
+    /// Turns on "when air gets worse" at `level`, asking for permission first.
+    /// - Returns: whether notifications are allowed.
+    @discardableResult
+    public static func enableThresholdAlerts(at level: AQILevel, defaults: UserDefaults = .shared) async -> Bool {
+        defaults.set(level.rawValue, forKey: Key.thresholdLevel)
+        defaults.set(true, forKey: Key.thresholdAlerts)
+        defaults.set(true, forKey: Key.alertsOffered)
+        let allowed = await NotificationScheduler.requestAuthorization()
+        await AlertCoordinator.preferencesChanged()
+        return allowed
     }
 
     public static func load(from defaults: UserDefaults = .shared) -> NotificationPreferences {
