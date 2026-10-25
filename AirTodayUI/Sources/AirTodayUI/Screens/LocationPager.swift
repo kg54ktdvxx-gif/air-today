@@ -1,6 +1,28 @@
 import SwiftUI
 import AirTodayCore
 
+/// Swipe and scroll positions, which change every frame.
+///
+/// They live in their own observable object, read only by the views that draw from
+/// them (backdrop, top-bar blur, refresh spinner). Kept as the pager's own state they
+/// re-rendered the pager — and with it every page's hero, cards and charts — on every
+/// frame of a swipe, which is what made swiping stutter.
+@MainActor
+@Observable
+final class PagerScrollState {
+    /// Fractional horizontal page index (1.5 = halfway between pages 1 and 2).
+    var pagePosition: CGFloat = 0
+    /// Each page's vertical scroll offset, keyed by location.
+    var pageOffsets: [UUID: CGFloat] = [:]
+
+    /// The page closest to the centre of the screen.
+    func nearestLocation(in locations: [SavedLocation]) -> SavedLocation? {
+        guard !locations.isEmpty else { return nil }
+        let index = min(max(Int(pagePosition.rounded()), 0), locations.count - 1)
+        return locations[index]
+    }
+}
+
 /// Horizontal paged navigation across saved locations.
 /// One shared atmosphere sits behind full-width LocationPages, so the scene
 /// carries across swipes instead of cutting from page to page.
@@ -8,14 +30,7 @@ public struct LocationPager: View {
     @Bindable var locationManager: LocationManager
     let locationService: LocationService
     @State private var showingSearch = false
-    /// Each page's vertical scroll offset, keyed by location.
-    @State private var pageOffsets: [UUID: CGFloat] = [:]
-    /// Fractional horizontal page index (1.5 = halfway between pages 1 and 2).
-    @State private var pagePosition: CGFloat = 0
-    @State private var renderQuality = RenderQuality()
-    @AppStorage("parallax_enabled") private var parallaxEnabled = true
-    @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var scrollState = PagerScrollState()
 
     public init(locationManager: LocationManager, locationService: LocationService) {
         self.locationManager = locationManager
@@ -28,7 +43,7 @@ public struct LocationPager: View {
                 if locationManager.locations.isEmpty {
                     emptyStateView
                 } else {
-                    backdrop
+                    PagerBackdrop(locationManager: locationManager, scrollState: scrollState)
                     pagerContent
                 }
 
@@ -53,14 +68,10 @@ public struct LocationPager: View {
                     .padding(.horizontal, DS.spacingLG)
                     .padding(.vertical, 8)
                     .background {
-                        // Glass blur appears as user scrolls into detail cards
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-                            .opacity(Double(min(1, max(0, selectedPageOffset / 200))))
-                            .ignoresSafeArea(edges: .top)
+                        TopBarBlur(selectedID: locationManager.selectedLocationID, scrollState: scrollState)
                     }
 
-                    refreshIndicator
+                    PagerRefreshIndicator(locationManager: locationManager, scrollState: scrollState)
                     Spacer()
                 }
 
@@ -81,10 +92,6 @@ public struct LocationPager: View {
                 case .privacyPolicy:
                     PrivacyPolicyView()
                 }
-            }
-            .onPreferenceChange(PageScrollOffsetsKey.self) { pageOffsets = $0 }
-            .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
-                renderQuality.update()
             }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingSearch) {
@@ -111,62 +118,6 @@ public struct LocationPager: View {
         }
     }
 
-    // MARK: - Atmosphere
-
-    private var selectedPageOffset: CGFloat {
-        locationManager.selectedLocationID.flatMap { pageOffsets[$0] } ?? 0
-    }
-
-    /// The page closest to the centre of the screen, which owns haze and particles.
-    private var nearestLocation: SavedLocation? {
-        let locations = locationManager.locations
-        guard !locations.isEmpty else { return nil }
-        let index = min(max(Int(pagePosition.rounded()), 0), locations.count - 1)
-        return locations[index]
-    }
-
-    private var backdrop: some View {
-        let nearestStore = nearestLocation.map { locationManager.store(for: $0) }
-        return AtmosphereBackdrop(
-            layers: locationManager.locations.map { location in
-                AtmosphereBackdrop.Layer(
-                    id: location.id,
-                    level: locationManager.store(for: location).currentAQI?.level ?? .good,
-                    scrollOffset: pageOffsets[location.id] ?? 0
-                )
-            },
-            pagePosition: pagePosition,
-            params: nearestStore?.currentAQI.map { AtmosphereParameters(from: $0) } ?? .placeholder,
-            isStirred: nearestStore?.state.isLoading ?? false,
-            parallaxEnabled: parallaxEnabled,
-            motionEnabled: !reduceMotion && !reduceVisualEffects,
-            effectsEnabled: !reduceVisualEffects,
-            tier: renderQuality.tier
-        )
-    }
-
-    /// Shown while the visible page re-fetches data it already had (pull to refresh,
-    /// relocation). The system refresh control sits under the status bar in this
-    /// full-bleed layout and can't be seen, so the pager draws its own, in the AQI colour.
-    @ViewBuilder
-    private var refreshIndicator: some View {
-        let store = nearestLocation.map { locationManager.store(for: $0) }
-        let isRefreshing = store.map { $0.state.isLoading && $0.currentAQI != nil } ?? false
-
-        ZStack {
-            if isRefreshing {
-                ProgressView()
-                    .tint(store?.currentAQI?.level.color ?? .white)
-                    .padding(10)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .shadow(color: .black.opacity(0.3), radius: 4)
-                    .transition(.opacity.combined(with: .scale(scale: 0.6)))
-                    .accessibilityLabel("Refreshing")
-            }
-        }
-        .animation(DS.Motion.quick, value: isRefreshing)
-    }
-
     // MARK: - Pager
 
     private var pagerContent: some View {
@@ -179,7 +130,8 @@ public struct LocationPager: View {
                         location: location,
                         userCoordinate: location.isCurrentLocation
                             ? locationService.coordinate.map(Coordinate.init)
-                            : nil
+                            : nil,
+                        onScrollOffsetChange: { scrollState.pageOffsets[location.id] = $0 }
                     ) {
                         await locationManager.refresh(location: location)
                     }
@@ -187,6 +139,9 @@ public struct LocationPager: View {
                     .id(location.id)
                 }
             }
+            // Without this, scrollPosition(id:) can't tell which page is showing and
+            // writes nil on every swipe, dropping the selection (and the top-bar name).
+            .scrollTargetLayout()
         }
         .scrollTargetBehavior(.paging)
         .scrollPosition(id: $locationManager.selectedLocationID)
@@ -195,7 +150,7 @@ public struct LocationPager: View {
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.x / max(geo.containerSize.width, 1)
         } action: { _, position in
-            pagePosition = position
+            scrollState.pagePosition = position
         }
     }
 
@@ -217,62 +172,118 @@ public struct LocationPager: View {
             : location.name.components(separatedBy: ",").first ?? location.name
     }
 
+    /// The current location is an arrow (as in Weather) so it's always findable; every
+    /// other city is a dot in its own air-quality colour, so the dots aren't anonymous.
+    @ViewBuilder
+    private func marker(for location: SavedLocation, color: Color, isSelected: Bool) -> some View {
+        if location.isCurrentLocation {
+            Image(systemName: "location.fill")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(color.opacity(isSelected ? 1 : 0.8))
+                .frame(width: 9, height: 9)
+        } else {
+            Circle()
+                .fill(color.opacity(isSelected ? 1 : 0.7))
+                .frame(width: 7, height: 7)
+        }
+    }
+
+    /// Where you are in your cities, and a menu of all of them.
+    ///
+    /// The capsule shows the current city's name and position, with a marker per city
+    /// (arrow for your location, dots in each city's AQI colour). Tapping it lists every
+    /// city by name with its reading — colour alone can't tell two Good cities apart.
     private var pageIndicator: some View {
         let locations = locationManager.locations
-        return HStack(spacing: 2) {
-            ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
-                let isSelected = locationManager.selectedLocationID == location.id
-                let levelColor = locationManager.store(for: location).currentAQI?.level.color ?? .white
-                let name = shortName(location)
-                // Position only means something once there's more than one place.
-                let position = locations.count > 1 ? " \(index + 1)/\(locations.count)" : ""
+        let selectedIndex = locations.firstIndex { $0.id == locationManager.selectedLocationID }
+        let selectedName = selectedIndex.map { shortName(locations[$0]) } ?? ""
 
+        return Menu {
+            ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
                 Button {
-                    withAnimation(DS.Motion.quick) {
+                    withAnimation(DS.Motion.standard) {
                         locationManager.selectedLocationID = location.id
                     }
                 } label: {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(isSelected ? levelColor : .white.opacity(0.4))
-                            .frame(width: 7, height: 7)
+                    // Menus render a second Text as the subtitle.
+                    Text(shortName(location))
+                    Text(menuSubtitle(for: location))
+                    Image(systemName: index == selectedIndex
+                        ? "checkmark"
+                        : location.isCurrentLocation ? "location.fill" : "mappin")
+                }
+            }
+        } label: {
+            indicatorCapsule(locations: locations, selectedIndex: selectedIndex)
+        }
+        .menuOrder(.fixed)
+        .accessibilityIdentifier("cityPicker")
+        .accessibilityLabel("Cities")
+        .accessibilityValue(selectedIndex.map { "\(selectedName), \($0 + 1) of \(locations.count)" } ?? "")
+        .accessibilityHint("Shows all your cities")
+    }
 
-                        if isSelected {
-                            HStack(spacing: 0) {
-                                Text(name)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                Text(position)
+    /// e.g. "AQI 26 · Good", on the chosen scale.
+    private func menuSubtitle(for location: SavedLocation) -> String {
+        guard let quality = locationManager.store(for: location).currentAQI else { return "Loading…" }
+        let shown = AQIScale.current.displayReading(for: quality)
+        let label = shown.scale == .ukDAQI ? "DAQI" : shown.scale == .euCAQI ? "CAQI" : "AQI"
+        return "\(label) \(shown.reading.value) · \(shown.reading.band.name)"
+    }
+
+    private func indicatorCapsule(locations: [SavedLocation], selectedIndex: Int?) -> some View {
+        HStack(spacing: 2) {
+            ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
+                let isSelected = index == selectedIndex
+                let levelColor = locationManager.store(for: location).currentAQI?.level.color ?? .white
+
+                HStack(spacing: 4) {
+                    marker(for: location, color: levelColor, isSelected: isSelected)
+
+                    if isSelected {
+                        HStack(spacing: 0) {
+                            Text(shortName(location))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            // Position only means something once there's more than one place.
+                            if locations.count > 1 {
+                                Text(" \(index + 1)/\(locations.count)")
                                     .monospacedDigit()
                                     .foregroundStyle(.white.opacity(DS.opacitySecondary))
                                     .fixedSize()
                             }
-                            .font(.system(.caption2, design: .rounded, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                         }
-                    }
-                    .padding(.horizontal, isSelected ? 10 : 6)
-                    .padding(.vertical, 5)
-                    .background {
-                        if isSelected {
-                            // The page's AQI colour, quietly, behind its name.
-                            Capsule()
-                                .fill(.black.opacity(0.35))
-                                .overlay(Capsule().fill(levelColor.opacity(0.22)))
-                        }
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                     }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(name), location \(index + 1) of \(locations.count)")
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
+                .padding(.horizontal, isSelected ? 10 : 5)
+                .padding(.vertical, 5)
+                .background {
+                    if isSelected {
+                        // The page's AQI colour, quietly, behind its name.
+                        Capsule()
+                            .fill(.black.opacity(0.35))
+                            .overlay(Capsule().fill(levelColor.opacity(0.22)))
+                    }
+                }
             }
+
+            Image(systemName: "chevron.down")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                .padding(.leading, 2)
+                .padding(.trailing, 6)
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)
         .background(.black.opacity(0.2), in: Capsule())
         .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
-        .animation(DS.Motion.quick, value: locationManager.selectedLocationID)
+        // Full-height hit area: the visible capsule is shorter than a comfortable tap.
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .animation(DS.Motion.quick, value: selectedIndex)
     }
 
     // MARK: - Empty State
@@ -354,5 +365,84 @@ public struct LocationPager: View {
         .padding(DS.spacingMD)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DS.cornerRadiusSM))
         .padding(.horizontal, DS.spacingLG)
+    }
+}
+
+// MARK: - Views that follow the scroll
+
+/// The shared atmosphere. Re-renders every frame of a swipe — on its own.
+private struct PagerBackdrop: View {
+    let locationManager: LocationManager
+    let scrollState: PagerScrollState
+
+    @State private var renderQuality = RenderQuality()
+    @AppStorage("parallax_enabled") private var parallaxEnabled = true
+    @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let locations = locationManager.locations
+        let nearestStore = scrollState.nearestLocation(in: locations).map { locationManager.store(for: $0) }
+
+        AtmosphereBackdrop(
+            layers: locations.map { location in
+                let quality = locationManager.store(for: location).currentAQI
+                return AtmosphereBackdrop.Layer(
+                    id: location.id,
+                    level: quality?.level ?? .good,
+                    params: quality.map { AtmosphereParameters(from: $0) } ?? .placeholder,
+                    scrollOffset: scrollState.pageOffsets[location.id] ?? 0
+                )
+            },
+            pagePosition: scrollState.pagePosition,
+            isStirred: nearestStore?.state.isLoading ?? false,
+            parallaxEnabled: parallaxEnabled,
+            motionEnabled: !reduceMotion && !reduceVisualEffects,
+            effectsEnabled: !reduceVisualEffects,
+            tier: renderQuality.tier
+        )
+        .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
+            renderQuality.update()
+        }
+    }
+}
+
+/// Glass behind the top bar, appearing as the visible page scrolls into its cards.
+private struct TopBarBlur: View {
+    let selectedID: UUID?
+    let scrollState: PagerScrollState
+
+    var body: some View {
+        let offset = selectedID.flatMap { scrollState.pageOffsets[$0] } ?? 0
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .opacity(Double(min(1, max(0, offset / 200))))
+            .ignoresSafeArea(edges: .top)
+    }
+}
+
+/// Shown while the visible page re-fetches data it already had (pull to refresh,
+/// relocation). The system refresh control sits under the status bar in this
+/// full-bleed layout and can't be seen, so the pager draws its own, in the AQI colour.
+private struct PagerRefreshIndicator: View {
+    let locationManager: LocationManager
+    let scrollState: PagerScrollState
+
+    var body: some View {
+        let store = scrollState.nearestLocation(in: locationManager.locations).map { locationManager.store(for: $0) }
+        let isRefreshing = store.map { $0.state.isLoading && $0.currentAQI != nil } ?? false
+
+        ZStack {
+            if isRefreshing {
+                ProgressView()
+                    .tint(store?.currentAQI?.level.color ?? .white)
+                    .padding(10)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .shadow(color: .black.opacity(0.3), radius: 4)
+                    .transition(.opacity.combined(with: .scale(scale: 0.6)))
+                    .accessibilityLabel("Refreshing")
+            }
+        }
+        .animation(DS.Motion.quick, value: isRefreshing)
     }
 }

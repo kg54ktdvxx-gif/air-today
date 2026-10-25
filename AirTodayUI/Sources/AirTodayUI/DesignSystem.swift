@@ -88,14 +88,3 @@ public enum DS {
             .frame(height: 0.5)
     }
 }
-
-// MARK: - Scroll Offset Preference
-
-/// Each location page's vertical scroll offset, keyed by location. A single
-/// CGFloat would be overwritten by whichever page the pager laid out last.
-public struct PageScrollOffsetsKey: PreferenceKey {
-    public static let defaultValue: [UUID: CGFloat] = [:]
-    public static func reduce(value: inout [UUID: CGFloat], nextValue: () -> [UUID: CGFloat]) {
-        value.merge(nextValue()) { _, new in new }
-    }
-}

@@ -3,14 +3,16 @@ import AirTodayCore
 
 /// One continuous atmosphere behind every location page.
 ///
-/// Each page's photo moves at a fraction of the horizontal swipe, so the scene
-/// lags behind the content like a camera panning across one landscape, and the
-/// next page's photo crossfades in over it. Vertically, each photo drifts with
-/// its own page's scroll (parallax), clamped so it never runs out.
+/// Everything follows the swipe position continuously: each page's photo (with its
+/// own time-of-day tint) moves at a fraction of the swipe and crossfades with its
+/// neighbour, and haze and particles blend between the two cities. Nothing switches
+/// at the halfway point, so swiping back and forth never pops. Vertically, each
+/// photo drifts with its own page's scroll (parallax), clamped so it never runs out.
 struct AtmosphereBackdrop: View {
     struct Layer: Identifiable {
         let id: UUID
         let level: AQILevel
+        let params: AtmosphereParameters
         /// That page's vertical scroll offset.
         let scrollOffset: CGFloat
     }
@@ -18,8 +20,6 @@ struct AtmosphereBackdrop: View {
     let layers: [Layer]
     /// Fractional index of the horizontal pager (1.5 = halfway between pages 1 and 2).
     let pagePosition: CGFloat
-    /// Atmosphere of the page nearest the centre, for haze and particles.
-    let params: AtmosphereParameters
     /// True while the visible page is refreshing; particles brighten and breathe.
     let isStirred: Bool
     let parallaxEnabled: Bool
@@ -37,15 +37,32 @@ struct AtmosphereBackdrop: View {
     /// Extra photo height available for vertical parallax, as a share of the screen.
     private static let parallaxHeadroom: CGFloat = 0.35
 
+    /// Where the swipe is: the page underneath, and how far the next one has faded in.
+    private var swipe: (lower: Int, blend: CGFloat, position: CGFloat) {
+        let maxIndex = CGFloat(max(layers.count - 1, 0))
+        // Rubber-band overscroll past the first/last page shouldn't reveal empty space.
+        let position = min(max(pagePosition, 0), maxIndex)
+        let lower = Int(position.rounded(.down))
+        return (lower, position - CGFloat(lower), position)
+    }
+
+    /// Haze and particles part-way between the two cities on screen.
+    private var blendedParams: AtmosphereParameters {
+        guard !layers.isEmpty else { return .placeholder }
+        let (lower, blend, _) = swipe
+        let base = layers[lower].params
+        guard blend > 0, lower + 1 < layers.count else { return base }
+        return base.blended(with: layers[lower + 1].params, fraction: Double(blend))
+    }
+
     var body: some View {
+        let params = blendedParams
+
         GeometryReader { geo in
             ZStack {
                 Color(red: 0.08, green: 0.08, blue: 0.1)
 
                 photos(in: geo.size)
-
-                skyTint
-                    .animation(DS.Motion.atmospheric, value: params.dayPhase)
 
                 // Soft blur + darken scrim for text readability
                 Rectangle()
@@ -85,8 +102,8 @@ struct AtmosphereBackdrop: View {
 
     /// Warm around the station's sunrise and sunset, cool and darker at night.
     @ViewBuilder
-    private var skyTint: some View {
-        switch params.dayPhase {
+    private func skyTint(_ dayPhase: DayPhase) -> some View {
+        switch dayPhase {
         case .day:
             Color.clear
         case .golden(let intensity):
@@ -111,26 +128,31 @@ struct AtmosphereBackdrop: View {
     @ViewBuilder
     private func photos(in size: CGSize) -> some View {
         let swipeLag = motionEnabled ? Self.swipeLag : 0
-        let maxIndex = CGFloat(max(layers.count - 1, 0))
-        // Rubber-band overscroll past the first/last page shouldn't reveal empty space.
-        let position = min(max(pagePosition, 0), maxIndex)
-        let lower = Int(position.rounded(.down))
-        let blend = position - CGFloat(lower)
+        let (lower, blend, position) = swipe
 
-        // Lower page underneath at full opacity, next page fading in on top,
-        // so the pair always covers the screen mid-swipe.
+        // Lower page underneath at full opacity, next page fading in on top, so the
+        // pair always covers the screen mid-swipe. The pages either side stay in the
+        // hierarchy (invisible) so a swipe in either direction starts with its photo
+        // already loaded, rather than inserting a full-screen image as the finger moves.
         ForEach(Array(layers.enumerated()), id: \.element.id) { index, layer in
-            if index == lower || (index == lower + 1 && blend > 0) {
-                LevelPhoto(level: layer.level)
-                    .frame(
-                        width: size.width * (1 + 2 * swipeLag),
-                        height: size.height * (1 + Self.parallaxHeadroom)
-                    )
-                    .position(
-                        x: size.width / 2 - (position - CGFloat(index)) * size.width * swipeLag,
-                        y: size.height * (1 + Self.parallaxHeadroom) / 2 - verticalShift(layer.scrollOffset, height: size.height)
-                    )
-                    .opacity(index == lower ? 1 : blend)
+            if (lower - 1)...(lower + 2) ~= index {
+                ZStack {
+                    LevelPhoto(level: layer.level)
+                    // Animate the tint alone: an animation on the whole layer would make
+                    // its position and opacity trail the finger whenever the phase changes.
+                    skyTint(layer.params.dayPhase)
+                        .animation(DS.Motion.atmospheric, value: layer.params.dayPhase)
+                }
+                .compositingGroup()
+                .frame(
+                    width: size.width * (1 + 2 * swipeLag),
+                    height: size.height * (1 + Self.parallaxHeadroom)
+                )
+                .position(
+                    x: size.width / 2 - (position - CGFloat(index)) * size.width * swipeLag,
+                    y: size.height * (1 + Self.parallaxHeadroom) / 2 - verticalShift(layer.scrollOffset, height: size.height)
+                )
+                .opacity(index == lower ? 1 : index == lower + 1 ? blend : 0)
             }
         }
     }

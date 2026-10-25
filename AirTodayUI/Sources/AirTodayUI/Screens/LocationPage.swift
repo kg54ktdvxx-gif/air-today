@@ -1,15 +1,25 @@
 import SwiftUI
 import AirTodayCore
 
+/// One page's vertical scroll offset. Read only by the views that fade with it, so
+/// scrolling into the cards doesn't rebuild the hero, cards and chart every frame.
+@MainActor
+@Observable
+final class PageScrollState {
+    var offset: CGFloat = 0
+}
+
 /// A single location's page — hero and detail cards over the shared atmosphere.
 public struct LocationPage: View {
     let store: AirQualityStore
     let location: SavedLocation
     /// The device's position, passed only for the current-location page.
     let userCoordinate: Coordinate?
+    /// Reports the vertical scroll offset every frame (for the pager's parallax and top bar).
+    let onScrollOffsetChange: (CGFloat) -> Void
     let onRetry: () async -> Void
 
-    @State private var scrollOffset: CGFloat = 0
+    @State private var scroll = PageScrollState()
     @State private var hasScrolled = false
     @State private var nearbyStations: [MapStation] = []
     @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
@@ -34,11 +44,13 @@ public struct LocationPage: View {
         store: AirQualityStore,
         location: SavedLocation,
         userCoordinate: Coordinate? = nil,
+        onScrollOffsetChange: @escaping (CGFloat) -> Void = { _ in },
         onRetry: @escaping () async -> Void
     ) {
         self.store = store
         self.location = location
         self.userCoordinate = userCoordinate
+        self.onScrollOffsetChange = onScrollOffsetChange
         self.onRetry = onRetry
     }
 
@@ -65,16 +77,20 @@ public struct LocationPage: View {
 
     /// Additional center vignette for hero text contrast.
     private var heroScrim: some View {
-        RadialGradient(
-            colors: [.black.opacity(0.2), .clear],
-            center: .center,
-            startRadius: 0,
-            endRadius: 400
-        )
+        FadesOnScroll(scroll: scroll, distance: Self.heroFadeDistance) {
+            RadialGradient(
+                colors: [.black.opacity(0.2), .clear],
+                center: .center,
+                startRadius: 0,
+                endRadius: 400
+            )
+        }
         .ignoresSafeArea()
         .allowsHitTesting(false)
-        .opacity(Double(min(1, max(0, 1 - scrollOffset / 150))))
     }
+
+    /// Scroll distance over which the hero fades out.
+    private static let heroFadeDistance: CGFloat = 150
 
     // MARK: - Scroll Content
 
@@ -96,25 +112,26 @@ public struct LocationPage: View {
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y
         } action: { _, newValue in
-            scrollOffset = newValue
-            if newValue > 20 { hasScrolled = true }
-            else if newValue < 5 { hasScrolled = false }
+            scroll.offset = newValue
+            onScrollOffsetChange(newValue)
+            // Only write on a real change, so this doesn't invalidate the page each frame.
+            if newValue > 20, !hasScrolled { hasScrolled = true }
+            else if newValue < 5, hasScrolled { hasScrolled = false }
         }
-        .preference(key: PageScrollOffsetsKey.self, value: [location.id: scrollOffset])
     }
 
     // MARK: - Hero
 
     private var heroSection: some View {
-        let heroOpacity = min(1, max(0, 1 - scrollOffset / 150))
-        return VerdictHero(
-            quality: store.currentAQI,
-            state: store.state,
-            heroOpacity: heroOpacity,
-            hasScrolled: hasScrolled,
-            distanceFromUser: distanceFromUser,
-            onRetry: onRetry
-        )
+        FadesOnScroll(scroll: scroll, distance: Self.heroFadeDistance) {
+            VerdictHero(
+                quality: store.currentAQI,
+                state: store.state,
+                hasScrolled: hasScrolled,
+                distanceFromUser: distanceFromUser,
+                onRetry: onRetry
+            )
+        }
     }
 
     private var distanceFromUser: Double? {
@@ -313,5 +330,17 @@ public struct LocationPage: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(label): \(value)")
+    }
+}
+
+/// Fades its content out over the first `distance` points of scrolling. It reads the
+/// offset itself, so only it — not the page around it — updates on each scroll frame.
+private struct FadesOnScroll<Content: View>: View {
+    let scroll: PageScrollState
+    let distance: CGFloat
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content.opacity(Double(min(1, max(0, 1 - scroll.offset / distance))))
     }
 }

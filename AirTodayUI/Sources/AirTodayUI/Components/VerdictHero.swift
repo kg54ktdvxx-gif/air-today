@@ -5,7 +5,6 @@ import AirTodayCore
 public struct VerdictHero: View {
     let quality: AirQuality?
     let state: LoadingState
-    let heroOpacity: Double
     let hasScrolled: Bool
     /// Metres from the device to the reporting station; nil for saved cities
     /// (their coordinate is the station itself) or without a location fix.
@@ -17,6 +16,7 @@ public struct VerdictHero: View {
     @AppStorage(AQIScale.storageKey, store: .shared)
     private var scale: AQIScale = .usEPA
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
     @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
     @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
     @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
@@ -34,14 +34,12 @@ public struct VerdictHero: View {
     public init(
         quality: AirQuality?,
         state: LoadingState,
-        heroOpacity: Double,
         hasScrolled: Bool,
         distanceFromUser: Double? = nil,
         onRetry: @escaping () async -> Void
     ) {
         self.quality = quality
         self.state = state
-        self.heroOpacity = heroOpacity
         self.hasScrolled = hasScrolled
         self.distanceFromUser = distanceFromUser
         self.onRetry = onRetry
@@ -74,7 +72,6 @@ public struct VerdictHero: View {
             }
         }
         .padding(.horizontal, 40)
-        .opacity(heroOpacity)
     }
 
     // MARK: - Loaded
@@ -154,7 +151,7 @@ public struct VerdictHero: View {
                 .font(.title2)
                 .foregroundStyle(.white.opacity(0.4))
                 .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
-                .symbolEffect(.pulse, isActive: !hasScrolled && !reduceMotion)
+                .symbolEffect(.pulse, isActive: !hasScrolled && !reduceMotion && !reduceVisualEffects)
                 .opacity(hasScrolled ? 0 : 1)
                 .animation(DS.Motion.quick, value: hasScrolled)
                 .padding(.top, 4)

@@ -18,6 +18,9 @@ struct AirTodayApp: App {
 
     init() {
         Preferences.migrateToSharedDefaults()
+        #if DEBUG
+        Self.applyUITestSeedIfRequested()
+        #endif
 
         let location = LocationService()
         let service = AirQualityService(token: AppConstants.waqiToken)
@@ -89,6 +92,32 @@ struct AirTodayApp: App {
             }
         }
     }
+
+    #if DEBUG
+    /// `-uitest-seed` (UI tests only): skip onboarding and start from three known
+    /// reporting stations, so tests don't depend on what's on the simulator.
+    private static func applyUITestSeedIfRequested() {
+        guard ProcessInfo.processInfo.arguments.contains("-uitest-seed") else { return }
+        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+        // XCTest waits for the app to go idle before every action; the drifting
+        // particles, haze and pulsing hint never stop, so it stalls for ~20 s each time.
+        UserDefaults.standard.set(true, forKey: DS.reduceVisualEffectsKey)
+        // Alert banners cover the top bar, where the tests tap.
+        for key in [
+            NotificationPreferences.Key.dailyVerdict,
+            NotificationPreferences.Key.thresholdAlerts,
+            NotificationPreferences.Key.bestWindow,
+            NotificationPreferences.Key.spikeAlerts,
+        ] {
+            UserDefaults.shared.set(false, forKey: key)
+        }
+        SavedLocationStore.save([
+            SavedLocation(name: "Paris", coordinate: Coordinate(latitude: 48.856614, longitude: 2.3522219), stationID: 5722),
+            SavedLocation(name: "Tashkent Chilanzar, Uzbekistan", coordinate: Coordinate(latitude: 41.31086, longitude: 69.24074), stationID: 14722),
+            SavedLocation(name: "Sydney East, Australia", coordinate: Coordinate(latitude: -33.872468, longitude: 151.213337), stationID: 12417),
+        ])
+    }
+    #endif
 
     // MARK: - Background Refresh
 

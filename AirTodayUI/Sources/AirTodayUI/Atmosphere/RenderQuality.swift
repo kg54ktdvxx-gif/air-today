@@ -39,12 +39,15 @@ public final class RenderQuality {
         let thermal = ProcessInfo.processInfo.thermalState
         let lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
 
-        if thermal == .critical || lowPower {
-            tier = .low
+        let next: QualityTier = if thermal == .critical || lowPower {
+            .low
         } else if thermal == .serious {
-            tier = .medium
+            .medium
         } else {
-            tier = .high
+            .high
         }
+        // Assigning an @Observable property notifies observers even when the value
+        // is unchanged; only write when the tier actually moves.
+        if next != tier { tier = next }
     }
 }

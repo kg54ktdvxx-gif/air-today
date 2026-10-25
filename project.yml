@@ -21,6 +21,9 @@ targets:
   Air Today:
     type: application
     platform: iOS
+    scheme:
+      testTargets:
+        - AirTodayUITests
     sources:
       - path: AirTodayApp
       # App Intents types used by both the app (Siri) and the widgets.
@@ -171,3 +174,16 @@ targets:
         MARKETING_VERSION: "1.2.0"
         CURRENT_PROJECT_VERSION: 10
         GENERATE_INFOPLIST_FILE: true
+
+  AirTodayUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: AirTodayUITests
+    dependencies:
+      - target: Air Today
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity.uitests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_TARGET_NAME: Air Today

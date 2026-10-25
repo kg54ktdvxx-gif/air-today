@@ -26,7 +26,10 @@ public enum DayPhase: Equatable, Sendable {
 
         let nearest = min(abs(date.timeIntervalSince(sunrise)), abs(date.timeIntervalSince(sunset)))
         if nearest < goldenWindow {
-            return .golden(intensity: 1 - nearest / goldenWindow)
+            // Tenths, so the value (and anything keyed on it) changes every few minutes,
+            // not on every render.
+            let intensity = ((1 - nearest / goldenWindow) * 10).rounded() / 10
+            return intensity > 0 ? .golden(intensity: intensity) : (date > sunrise && date < sunset ? .day : .night)
         }
         return date > sunrise && date < sunset ? .day : .night
     }

@@ -36,6 +36,31 @@ public struct ParticleConfig: Equatable, Sendable {
         return config
     }
 
+    /// Linear blend towards `other`; `fraction` 0 is `self`, 1 is `other`. Used while
+    /// swiping between cities so particles change gradually with the swipe instead of
+    /// all switching at the halfway point.
+    public func interpolated(to other: ParticleConfig, fraction: Double) -> ParticleConfig {
+        let t = min(max(fraction, 0), 1)
+        // Weighted form, so 0 and 1 return each end exactly.
+        func mix(_ a: Double, _ b: Double) -> Double { a * (1 - t) + b * t }
+        var config = ParticleConfig(
+            birthRate: mix(birthRate, other.birthRate),
+            maxParticles: Int(mix(Double(maxParticles), Double(other.maxParticles)).rounded()),
+            minSpeed: mix(minSpeed, other.minSpeed),
+            maxSpeed: mix(maxSpeed, other.maxSpeed),
+            minSize: CGFloat(mix(Double(minSize), Double(other.minSize))),
+            maxSize: CGFloat(mix(Double(maxSize), Double(other.maxSize))),
+            minOpacity: mix(minOpacity, other.minOpacity),
+            maxOpacity: mix(maxOpacity, other.maxOpacity),
+            colorRed: mix(colorRed, other.colorRed),
+            colorGreen: mix(colorGreen, other.colorGreen),
+            colorBlue: mix(colorBlue, other.colorBlue),
+            wobbleAmount: mix(wobbleAmount, other.wobbleAmount)
+        )
+        config.drift = mix(drift, other.drift)
+        return config
+    }
+
     public static let disabled = ParticleConfig(
         birthRate: 0, maxParticles: 0,
         minSpeed: 0, maxSpeed: 0,
@@ -105,6 +130,26 @@ public struct AtmosphereParameters: Equatable, Sendable {
         particleConfig: .disabled,
         dayPhase: .day
     )
+
+    /// Blend towards `other` for the part of the atmosphere that has to follow a swipe
+    /// continuously (haze, grading, particles). Discrete values (palette, haze tint,
+    /// time of day) come from whichever side is nearer.
+    public func blended(with other: AtmosphereParameters, fraction: Double) -> AtmosphereParameters {
+        let t = min(max(fraction, 0), 1)
+        let near = t < 0.5 ? self : other
+        func mix(_ a: Double, _ b: Double) -> Double { a * (1 - t) + b * t }
+        func mix(_ a: Float, _ b: Float) -> Float { a * Float(1 - t) + b * Float(t) }
+        return AtmosphereParameters(
+            meshColors: near.meshColors,
+            hazeDensity: mix(hazeDensity, other.hazeDensity),
+            hazeColor: near.hazeColor,
+            distortionAmplitude: mix(distortionAmplitude, other.distortionAmplitude),
+            saturation: mix(saturation, other.saturation),
+            warmth: mix(warmth, other.warmth),
+            particleConfig: particleConfig.interpolated(to: other.particleConfig, fraction: t),
+            dayPhase: near.dayPhase
+        )
+    }
 
     private init(
         meshColors: [Color], hazeDensity: Float, hazeColor: Color,

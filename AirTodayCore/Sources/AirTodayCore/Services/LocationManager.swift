@@ -7,6 +7,9 @@ public final class LocationManager {
     public private(set) var locations: [SavedLocation] = []
     public var selectedLocationID: UUID?
 
+    /// A lazily filled cache, created from inside view bodies. Not observed: views
+    /// watch each store's own data, and a store being added must not invalidate them all.
+    @ObservationIgnored
     private var stores: [UUID: AirQualityStore] = [:]
     private let service: AirQualityServiceProtocol
     private let locationService: LocationService
