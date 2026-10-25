@@ -12,7 +12,6 @@ public final class LocationManager {
     private let locationService: LocationService
 
     private static let maxLocations = 6
-    private static let storageKey = "saved_locations"
 
     public init(service: AirQualityServiceProtocol, locationService: LocationService) {
         self.service = service
@@ -58,14 +57,49 @@ public final class LocationManager {
     /// Refresh a specific location — uses GPS for current, coordinates for saved cities.
     public func refresh(location: SavedLocation) async {
         let locationStore = store(for: location)
+        let before = locationStore.currentAQI?.timestamp
         if location.isCurrentLocation {
             await locationStore.refresh()
+        } else if let stationID = location.stationID {
+            await locationStore.fetchStation(id: stationID, coordinate: location.coordinate)
         } else {
             await locationStore.fetchForStation(
                 latitude: location.coordinate.latitude,
-                longitude: location.coordinate.longitude
+                longitude: location.coordinate.longitude,
+                maxDistance: Self.legacyStationMaxDistance
             )
+            adoptStationID(for: location)
         }
+        await processAlerts(for: location, previousTimestamp: before)
+    }
+
+    /// Cities saved before station IDs were stored are looked up by coordinate.
+    /// Anything farther than this is another place's air, not this city's.
+    public static let legacyStationMaxDistance: Double = 50_000
+
+    /// Once a coordinate lookup lands on the station the city was saved from
+    /// (within 2 km), remember its ID so future fetches stay on it.
+    private func adoptStationID(for location: SavedLocation) {
+        guard let station = store(for: location).currentAQI?.station,
+              station.coordinate.distance(to: location.coordinate) <= 2_000,
+              let index = locations.firstIndex(where: { $0.id == location.id })
+        else { return }
+        locations[index] = SavedLocation(
+            id: location.id,
+            name: location.name,
+            coordinate: location.coordinate,
+            stationID: station.id
+        )
+        saveLocations()
+    }
+
+    /// New measurements go through the alert engine (which also re-plans the
+    /// daily notifications when it's the current location).
+    private func processAlerts(for location: SavedLocation, previousTimestamp: Date?) async {
+        guard let quality = store(for: location).currentAQI,
+              quality.timestamp != previousTimestamp
+        else { return }
+        await AlertCoordinator.process([(location: location, quality: quality)])
     }
 
     public var canAddLocation: Bool {
@@ -81,20 +115,25 @@ public final class LocationManager {
 
     // MARK: - Add / Remove
 
+    /// Adds a city, shows it, and fetches it straight away rather than waiting
+    /// for the user to swipe to an empty page.
     public func addLocation(_ location: SavedLocation) {
         guard locations.count < Self.maxLocations else { return }
         guard !locations.contains(where: { $0.id == location.id }) else { return }
         locations.append(location)
         saveLocations()
+        selectedLocationID = location.id
+        Task { await refresh(location: location) }
     }
 
     public func removeLocation(at offsets: IndexSet) {
         // Don't allow removing current location
         let filtered = offsets.filter { !locations[$0].isCurrentLocation }
-        let idsToRemove = filtered.map { locations[$0].id }
+        let removed = filtered.map { locations[$0] }
         locations.remove(atOffsets: IndexSet(filtered))
-        for id in idsToRemove {
-            stores.removeValue(forKey: id)
+        for location in removed {
+            stores.removeValue(forKey: location.id)
+            AlertCoordinator.forget(location)
         }
         saveLocations()
     }
@@ -103,6 +142,7 @@ public final class LocationManager {
         guard !location.isCurrentLocation else { return }
         stores.removeValue(forKey: location.id)
         locations.removeAll { $0.id == location.id }
+        AlertCoordinator.forget(location)
         saveLocations()
     }
 
@@ -115,16 +155,8 @@ public final class LocationManager {
     }
 
     public func refreshIfNeeded() async {
-        for location in locations {
-            let locationStore = store(for: location)
-            if location.isCurrentLocation {
-                await locationStore.refreshIfNeeded()
-            } else if locationStore.isStale {
-                await locationStore.fetchForStation(
-                    latitude: location.coordinate.latitude,
-                    longitude: location.coordinate.longitude
-                )
-            }
+        for location in locations where store(for: location).isStale {
+            await refresh(location: location)
         }
     }
 
@@ -158,18 +190,10 @@ public final class LocationManager {
     // MARK: - Persistence
 
     private func saveLocations() {
-        guard let defaults = UserDefaults(suiteName: AppConstants.appGroupID) else { return }
-        let nonCurrent = locations.filter { !$0.isCurrentLocation }
-        if let data = try? JSONEncoder().encode(nonCurrent) {
-            defaults.set(data, forKey: Self.storageKey)
-        }
+        SavedLocationStore.save(locations)
     }
 
     private func loadLocations() {
-        guard let defaults = UserDefaults(suiteName: AppConstants.appGroupID),
-              let data = defaults.data(forKey: Self.storageKey),
-              let saved = try? JSONDecoder().decode([SavedLocation].self, from: data)
-        else { return }
-        locations = saved
+        locations = SavedLocationStore.load()
     }
 }

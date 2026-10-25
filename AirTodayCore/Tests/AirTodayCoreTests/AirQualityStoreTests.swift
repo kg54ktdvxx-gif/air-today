@@ -7,6 +7,7 @@ private struct StubService: AirQualityServiceProtocol {
 
     func fetchCurrent(latitude: Double, longitude: Double) async throws -> AirQuality { quality }
     func fetchCurrent(city: String) async throws -> AirQuality { quality }
+    func fetchStation(id: Int) async throws -> AirQuality { quality }
     func search(keyword: String) async throws -> [StationSummary] { [] }
     func fetchMapBounds(lat1: Double, lng1: Double, lat2: Double, lng2: Double) async throws -> [MapStation] { [] }
 }

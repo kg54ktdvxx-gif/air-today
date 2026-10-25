@@ -254,7 +254,7 @@ public struct VerdictHero: View {
     @ViewBuilder
     private func errorContent(_ message: String) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: "wifi.exclamationmark")
+            Image(systemName: "exclamationmark.circle")
                 .font(.system(size: 40))
                 .foregroundStyle(.white.opacity(0.6))
             Text("Couldn't load air quality")

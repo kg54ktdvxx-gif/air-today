@@ -75,3 +75,35 @@ struct WAQIParsingTests {
         #expect(uv.first?.max == 6)
     }
 }
+
+@Suite("Reading freshness")
+struct FreshnessTests {
+    private func quality(measuredAt date: Date) -> AirQuality {
+        AirQuality(
+            aqi: 172,
+            dominantPollutant: .pm25,
+            pollutants: [],
+            weather: Weather(),
+            station: Station(id: 7021, name: "Kolkata US Consulate", coordinate: Coordinate(latitude: 22.5, longitude: 88.3), url: ""),
+            forecast: [],
+            timestamp: date,
+            attribution: []
+        )
+    }
+
+    @Test("A reading from hours ago is still current")
+    func recentIsFresh() throws {
+        let now = Date(timeIntervalSince1970: 1_792_900_000)
+        try AirQualityService.checkFreshness(quality(measuredAt: now.addingTimeInterval(-3 * 3600)), now: now)
+    }
+
+    @Test("A station's months-old last reading is rejected as stale")
+    func oldIsStale() {
+        let now = Date(timeIntervalSince1970: 1_792_900_000)
+        // Kolkata US Consulate's last report, still served by WAQI in Oct 2026.
+        let lastReport = Date(timeIntervalSince1970: 1_740_151_800)
+        #expect(throws: AirQualityError.self) {
+            try AirQualityService.checkFreshness(quality(measuredAt: lastReport), now: now)
+        }
+    }
+}

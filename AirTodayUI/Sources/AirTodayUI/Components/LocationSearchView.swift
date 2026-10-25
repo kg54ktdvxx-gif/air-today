@@ -72,9 +72,15 @@ public struct LocationSearchView: View {
                                     Text("\(aqi)")
                                         .font(.subheadline.weight(.semibold).monospacedDigit())
                                         .foregroundStyle(AQILevel(aqi: aqi).color)
+                                } else {
+                                    Text("Offline")
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(.secondary)
                                 }
                             }
+                            .opacity(station.isOffline ? 0.5 : 1)
                         }
+                        .accessibilityHint(station.isOffline ? "This station isn't reporting right now" : "")
                         .sensoryFeedback(.impact(flexibility: .solid), trigger: results.count)
                     }
                 }
@@ -131,7 +137,8 @@ public struct LocationSearchView: View {
     private func addStation(_ station: StationSummary) {
         let location = SavedLocation(
             name: station.name,
-            coordinate: station.coordinate
+            coordinate: station.coordinate,
+            stationID: station.id
         )
         locationManager.addLocation(location)
         dismiss()

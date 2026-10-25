@@ -5,6 +5,7 @@ import Foundation
 public protocol AirQualityServiceProtocol: Sendable {
     func fetchCurrent(latitude: Double, longitude: Double) async throws -> AirQuality
     func fetchCurrent(city: String) async throws -> AirQuality
+    func fetchStation(id: Int) async throws -> AirQuality
     func search(keyword: String) async throws -> [StationSummary]
     func fetchMapBounds(lat1: Double, lng1: Double, lat2: Double, lng2: Double) async throws -> [MapStation]
 }
@@ -14,8 +15,11 @@ public protocol AirQualityServiceProtocol: Sendable {
 public struct StationSummary: Sendable, Identifiable {
     public let id: Int
     public let name: String
+    /// Nil when the station is offline (WAQI reports "-").
     public let aqi: Int?
     public let coordinate: Coordinate
+
+    public var isOffline: Bool { aqi == nil }
 }
 
 // MARK: - Implementation
@@ -45,6 +49,14 @@ public struct AirQualityService: AirQualityServiceProtocol {
         return try await fetchFeed(url: url)
     }
 
+    /// A specific station, by WAQI uid.
+    public func fetchStation(id: Int) async throws -> AirQuality {
+        guard let url = URL(string: "\(baseURL)/feed/@\(id)/?token=\(token)") else {
+            throw AirQualityError.apiError("Invalid URL")
+        }
+        return try await fetchFeed(url: url)
+    }
+
     public func search(keyword: String) async throws -> [StationSummary] {
         let encoded = keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword
         guard let url = URL(string: "\(baseURL)/search/?keyword=\(encoded)&token=\(token)") else {
@@ -57,7 +69,7 @@ public struct AirQualityService: AirQualityServiceProtocol {
             throw AirQualityError.apiError(response.status)
         }
 
-        return response.data.compactMap { item in
+        let stations = response.data.compactMap { item -> StationSummary? in
             let aqi = Int(item.aqi)
             guard let geo = item.station.geo, geo.count == 2 else { return nil }
             return StationSummary(
@@ -67,6 +79,8 @@ public struct AirQualityService: AirQualityServiceProtocol {
                 coordinate: Coordinate(latitude: geo[0], longitude: geo[1])
             )
         }
+        // Live stations first; offline ones stay listed (marked) in WAQI's order.
+        return stations.filter { !$0.isOffline } + stations.filter(\.isOffline)
     }
 
     public func fetchMapBounds(lat1: Double, lng1: Double, lat2: Double, lng2: Double) async throws -> [MapStation] {
@@ -126,7 +140,16 @@ public struct AirQualityService: AirQualityServiceProtocol {
             throw AirQualityError.stationOffline
         }
 
-        return mapToAirQuality(feedData)
+        let quality = mapToAirQuality(feedData)
+        try Self.checkFreshness(quality, now: Date())
+        return quality
+    }
+
+    /// Rejects a reading too old to describe the air now (see `AppConstants.maxReadingAge`).
+    static func checkFreshness(_ quality: AirQuality, now: Date) throws {
+        if now.timeIntervalSince(quality.timestamp) > AppConstants.maxReadingAge {
+            throw AirQualityError.staleData(lastReport: quality.timestamp)
+        }
     }
 
     private func mapToAirQuality(_ data: WAQIFeedData) -> AirQuality {
@@ -262,12 +285,17 @@ public enum AirQualityError: LocalizedError, Sendable {
     case apiError(String)
     case stationOffline
     case noData
+    case noNearbyStation
+    case staleData(lastReport: Date)
 
     public var errorDescription: String? {
         switch self {
         case .apiError(let message): "API error: \(message)"
         case .stationOffline: "Station is currently offline"
         case .noData: "No air quality data available"
+        case .noNearbyStation: "No monitoring station is reporting near here right now"
+        case .staleData(let lastReport):
+            "This station hasn't reported since \(lastReport.formatted(date: .abbreviated, time: .omitted))"
         }
     }
 }

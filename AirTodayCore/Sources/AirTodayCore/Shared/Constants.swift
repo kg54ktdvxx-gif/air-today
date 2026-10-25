@@ -22,5 +22,9 @@ public enum AppConstants {
     /// Moving further than this from where the current-location reading was
     /// requested makes it stale, even inside the cache TTL.
     public static let relocationThreshold: Double = 5_000  // metres
+    /// WAQI keeps serving a station's last reading after it stops reporting
+    /// (US consulate monitors from early 2025 still come back as "current").
+    /// Older than this, a reading is treated as the station being offline.
+    public static let maxReadingAge: TimeInterval = 24 * 60 * 60
     public static let temperatureUnitKey = "temp_unit"
 }

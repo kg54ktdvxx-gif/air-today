@@ -12,6 +12,14 @@ public struct SettingsScreen: View {
     @AppStorage("parallax_enabled") private var parallaxEnabled = true
     @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
     @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
+
+    @AppStorage(NotificationPreferences.Key.dailyVerdict, store: .shared) private var dailyVerdict = false
+    @AppStorage(NotificationPreferences.Key.dailyVerdictMinutes, store: .shared) private var dailyVerdictMinutes = NotificationPreferences().dailyVerdictMinutes
+    @AppStorage(NotificationPreferences.Key.thresholdAlerts, store: .shared) private var thresholdAlerts = false
+    @AppStorage(NotificationPreferences.Key.thresholdLevel, store: .shared) private var thresholdLevel: AQILevel = .sensitive
+    @AppStorage(NotificationPreferences.Key.bestWindow, store: .shared) private var bestWindow = false
+    @AppStorage(NotificationPreferences.Key.spikeAlerts, store: .shared) private var spikeAlerts = false
+    @State private var notificationsDenied = false
     @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
     private var temperatureUnit: TemperatureUnit = .celsius
     @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
@@ -71,6 +79,8 @@ public struct SettingsScreen: View {
             } footer: {
                 Text("Tailors verdicts and activity advice. Stays on this device.")
             }
+
+            notificationsSection
 
             Section {
                 Picker(selection: $scale) {
@@ -176,6 +186,79 @@ public struct SettingsScreen: View {
             }
         } message: {
             Text("This location will be removed from your list.")
+        }
+    }
+
+    // MARK: - Notifications
+
+    private var notificationsSection: some View {
+        Section {
+            Toggle(isOn: $dailyVerdict) {
+                Label("Daily verdict", systemImage: "sun.horizon")
+            }
+            if dailyVerdict {
+                DatePicker("Time", selection: dailyVerdictTime, displayedComponents: .hourAndMinute)
+            }
+
+            Toggle(isOn: $thresholdAlerts) {
+                Label("When air gets worse", systemImage: "exclamationmark.triangle")
+            }
+            if thresholdAlerts {
+                Picker("Alert from", selection: $thresholdLevel) {
+                    ForEach([AQILevel.moderate, .sensitive, .unhealthy, .veryUnhealthy], id: \.self) { level in
+                        Text(level.label).tag(level)
+                    }
+                }
+            }
+
+            Toggle(isOn: $bestWindow) {
+                Label("Best time to go out", systemImage: "clock.badge.checkmark")
+            }
+
+            Toggle(isOn: $spikeAlerts) {
+                Label("Sudden spikes", systemImage: "flame")
+            }
+        } header: {
+            Text("Notifications")
+        } footer: {
+            if notificationsDenied {
+                VStack(alignment: .leading, spacing: DS.spacingXS) {
+                    Text("Notifications are turned off for Air Today in iOS Settings.")
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .font(.footnote.weight(.semibold))
+                }
+            } else {
+                Text("Alerts cover every saved location. iOS decides how often Air Today can check in the background, so they can arrive a little late. The daily verdict and best time use today's forecast where you are.")
+            }
+        }
+        .onChange(of: [dailyVerdict, thresholdAlerts, bestWindow, spikeAlerts]) { old, new in
+            let turnedOn = zip(old, new).contains { !$0 && $1 }
+            Task {
+                if turnedOn, !(await NotificationScheduler.requestAuthorization()) {
+                    notificationsDenied = await NotificationScheduler.isDenied()
+                }
+                await AlertCoordinator.preferencesChanged()
+            }
+        }
+        .onChange(of: dailyVerdictMinutes) {
+            Task { await AlertCoordinator.preferencesChanged() }
+        }
+        .task {
+            notificationsDenied = await NotificationScheduler.isDenied()
+        }
+    }
+
+    /// The daily verdict time as a Date for the picker, stored as minutes after midnight.
+    private var dailyVerdictTime: Binding<Date> {
+        Binding {
+            Calendar.current.date(bySettingHour: dailyVerdictMinutes / 60, minute: dailyVerdictMinutes % 60, second: 0, of: Date()) ?? Date()
+        } set: { date in
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+            dailyVerdictMinutes = (parts.hour ?? 7) * 60 + (parts.minute ?? 30)
         }
     }
 

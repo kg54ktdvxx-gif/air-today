@@ -82,13 +82,31 @@ public final class AirQualityStore {
         try await service.search(keyword: keyword)
     }
 
-    /// Fetch data for a specific station by coordinates.
-    public func fetchForStation(latitude: Double, longitude: Double) async {
+    /// Fetch the nearest active station to a coordinate. WAQI answers with the
+    /// nearest station that's *reporting*, however far; `maxDistance` (metres)
+    /// rejects one too far away to describe this place.
+    public func fetchForStation(latitude: Double, longitude: Double, maxDistance: Double? = nil) async {
         guard !state.isLoading else { return }
         state = .loading
         do {
+            let requested = Coordinate(latitude: latitude, longitude: longitude)
             let quality = try await service.fetchCurrent(latitude: latitude, longitude: longitude)
-            apply(quality, queryCoordinate: Coordinate(latitude: latitude, longitude: longitude))
+            if let maxDistance, quality.station.coordinate.distance(to: requested) > maxDistance {
+                throw AirQualityError.noNearbyStation
+            }
+            apply(quality, queryCoordinate: requested)
+        } catch {
+            state = .error(error.localizedDescription)
+        }
+    }
+
+    /// Fetch one WAQI station by uid (saved cities).
+    public func fetchStation(id: Int, coordinate: Coordinate) async {
+        guard !state.isLoading else { return }
+        state = .loading
+        do {
+            let quality = try await service.fetchStation(id: id)
+            apply(quality, queryCoordinate: coordinate)
         } catch {
             state = .error(error.localizedDescription)
         }
