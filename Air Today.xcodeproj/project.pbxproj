@@ -28,6 +28,7 @@
 		AD28C0C0AE9ECFD4E1E33203 /* AirTodayWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D8B7E72A6EFF893805434F9B /* AirTodayWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B26B85D1272BC8F5E69E378D /* Atmosphere.metal in Sources */ = {isa = PBXBuildFile; fileRef = 21B46E0136F8217FDEB01073 /* Atmosphere.metal */; };
 		BB6F281E5B097D6DE548BF30 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 40E3C1D7F434E71E88A3A406 /* Assets.xcassets */; };
+		C7B2C4D40AB692DA7C0D46D5 /* StoreScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03C8206FEB246D59FEB04FC /* StoreScreenshotTests.swift */; };
 		CD037504C28E803454765FE3 /* WatchAirModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD979C19E152F8C2663DF02 /* WatchAirModel.swift */; };
 		CF8040B15A3F81AB71D9A421 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D01203B7005A058FE30BE1A1 /* PrivacyInfo.xcprivacy */; };
 		D98BBB57780681267D2E021B /* AirTodayWatchWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6032310FA852EBF18FF476F7 /* AirTodayWatchWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -137,6 +138,7 @@
 		A13FDAB811ADE845BCAA7A75 /* AirTodayUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AirTodayUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1D982AC13679303EE14BBCD /* AirTodayWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AirTodayWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A48DAA3DFA59D268AF865B07 /* PagerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PagerUITests.swift; sourceTree = "<group>"; };
+		B03C8206FEB246D59FEB04FC /* StoreScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreScreenshotTests.swift; sourceTree = "<group>"; };
 		B6168BB18E1293489CE51BA3 /* AirTodayCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AirTodayCore; path = AirTodayCore; sourceTree = SOURCE_ROOT; };
 		B699B8D360AC1F9BBFA0F5E0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C312E10CD131693B328F28BE /* AirTodayWatchWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AirTodayWatchWidget.entitlements; sourceTree = "<group>"; };
@@ -278,6 +280,7 @@
 			children = (
 				433975A3CE1418EB8FC43AE0 /* OnboardingUITests.swift */,
 				A48DAA3DFA59D268AF865B07 /* PagerUITests.swift */,
+				B03C8206FEB246D59FEB04FC /* StoreScreenshotTests.swift */,
 			);
 			path = AirTodayUITests;
 			sourceTree = "<group>";
@@ -516,6 +519,7 @@
 			files = (
 				E1C1EC5FB1822DD9E671A8EC /* OnboardingUITests.swift in Sources */,
 				7439CDE6962D61EA8029E893 /* PagerUITests.swift in Sources */,
+				C7B2C4D40AB692DA7C0D46D5 /* StoreScreenshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

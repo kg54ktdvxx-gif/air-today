@@ -96,7 +96,11 @@ struct AirTodayApp: App {
         UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
         // XCTest waits for the app to go idle before every action; the drifting
         // particles, haze and pulsing hint never stop, so it stalls for ~20 s each time.
-        UserDefaults.standard.set(true, forKey: DS.reduceVisualEffectsKey)
+        // Store screenshots (`-uitest-effects`) accept the wait to show the real look.
+        let effects = ProcessInfo.processInfo.arguments.contains("-uitest-effects")
+        UserDefaults.standard.set(!effects, forKey: DS.reduceVisualEffectsKey)
+        // As on a fresh install, so first-run hints (the scale caption) show.
+        UserDefaults.standard.set(0, forKey: DS.launchCountKey)
         UserDefaults.shared.set(true, forKey: NotificationPreferences.Key.alertsOffered)
         // Alert banners cover the top bar, where the tests tap.
         for key in [
@@ -119,7 +123,7 @@ struct AirTodayApp: App {
     private static func applyUITestOnboardingIfRequested() {
         guard ProcessInfo.processInfo.arguments.contains("-uitest-onboarding") else { return }
         UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
-        UserDefaults.standard.set(true, forKey: DS.reduceVisualEffectsKey)
+        UserDefaults.standard.set(!ProcessInfo.processInfo.arguments.contains("-uitest-effects"), forKey: DS.reduceVisualEffectsKey)
         for key in [HealthProfile.Key.respiratory, HealthProfile.Key.ozoneSensitive, HealthProfile.Key.children] {
             UserDefaults.shared.set(false, forKey: key)
         }
