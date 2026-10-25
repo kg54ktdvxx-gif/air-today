@@ -139,7 +139,8 @@ struct NotificationTests {
         )
         let window = try #require(planned.first { $0.id == DailyPlanner.bestWindowID })
         #expect(window.fireDate == date(day: 26, hour: 7))
-        #expect(window.body.contains("before 10 AM"))
+        #expect(window.title == "Best time outside: Before 10 AM")
+        #expect(window.body == "Ozone builds through the afternoon.")
     }
 
     @Test("Nothing planned when nothing is enabled")

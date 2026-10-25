@@ -1,75 +1,101 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 import AirTodayCore
 
+/// Everything any Air Today widget draws from.
 struct AQIWidgetEntry: TimelineEntry {
     let date: Date
-    let aqi: Int
-    let level: AQILevel
-    let stationName: String
-    let dominantPollutant: String
-    let isStale: Bool
+    /// Nil before the app has ever loaded a reading.
+    let quality: AirQuality?
+    /// When the reading was fetched; drives the "may be outdated" marker.
+    let fetchedAt: Date?
+    let scale: AQIScale
+    let profile: HealthProfile
+
+    var level: AQILevel { quality?.level ?? .good }
+
+    var isStale: Bool {
+        guard let fetchedAt else { return true }
+        return date.timeIntervalSince(fetchedAt) > AppConstants.cacheTTL * 2
+    }
+
+    var guidance: ActivityGuidance? {
+        quality.map { ActivityGuidanceService().guidance(for: $0, at: date, profile: profile) }
+    }
+
+    var reading: (scale: AQIScale, reading: ScaledReading)? {
+        quality.map { scale.displayReading(for: $0) }
+    }
 
     static let placeholder = AQIWidgetEntry(
         date: .now,
-        aqi: 42,
-        level: .good,
-        stationName: "Loading...",
-        dominantPollutant: "PM2.5",
-        isStale: false
-    )
-
-    static let noData = AQIWidgetEntry(
-        date: .now,
-        aqi: 0,
-        level: .good,
-        stationName: "No data",
-        dominantPollutant: "--",
-        isStale: true
+        quality: AirQuality(
+            aqi: 42,
+            dominantPollutant: .pm25,
+            pollutants: [Pollutant(kind: .pm25, aqi: 42)],
+            weather: Weather(temperature: 18),
+            station: Station(id: 0, name: "Your area", coordinate: Coordinate(latitude: 0, longitude: 0), url: ""),
+            forecast: [],
+            timestamp: .now,
+            attribution: []
+        ),
+        fetchedAt: .now,
+        scale: .usEPA,
+        profile: .none
     )
 }
 
-struct AQIWidgetProvider: TimelineProvider {
-    func placeholder(in context: Context) -> AQIWidgetEntry {
-        .placeholder
-    }
-
-    func getSnapshot(in context: Context, completion: @escaping (AQIWidgetEntry) -> Void) {
-        if let quality = SharedDataStore.load() {
-            completion(entryFromQuality(quality))
-        } else {
-            completion(.placeholder)
-        }
-    }
-
-    func getTimeline(in context: Context, completion: @escaping (Timeline<AQIWidgetEntry>) -> Void) {
-        let entry: AQIWidgetEntry
-        if let quality = SharedDataStore.load() {
-            entry = entryFromQuality(quality)
-        } else {
-            entry = .noData
-        }
-
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: .now) ?? .now
-        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
-        completion(timeline)
-    }
-
-    private func entryFromQuality(_ quality: AirQuality) -> AQIWidgetEntry {
-        let isStale: Bool
-        if let lastUpdated = SharedDataStore.lastUpdated() {
-            isStale = Date().timeIntervalSince(lastUpdated) > AppConstants.cacheTTL * 2
-        } else {
-            isStale = false
-        }
-
+enum AQIWidgetTimeline {
+    /// Uses the shared cache while it's fresh and fetches otherwise, so widgets
+    /// stay current even when the app hasn't been opened.
+    static func entry(at date: Date = .now) async -> AQIWidgetEntry {
+        let quality = await CurrentAirRefresher.latest()
         return AQIWidgetEntry(
-            date: Date(),
-            aqi: quality.aqi,
-            level: quality.level,
-            stationName: quality.station.name,
-            dominantPollutant: quality.dominantPollutant?.displayName ?? "PM2.5",
-            isStale: isStale
+            date: date,
+            quality: quality,
+            fetchedAt: SharedDataStore.lastUpdated(),
+            scale: AQIScale.current,
+            profile: HealthProfile.load()
         )
+    }
+
+    static func timeline() async -> Timeline<AQIWidgetEntry> {
+        let entry = await entry()
+        let next = Calendar.current.date(byAdding: .minute, value: 30, to: entry.date) ?? entry.date
+        return Timeline(entries: [entry], policy: .after(next))
+    }
+}
+
+/// The plain air-quality and best-window widgets have nothing to configure.
+struct AirQualityWidgetIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource { "Air Quality" }
+    static var description: IntentDescription { "Air quality where you are." }
+}
+
+struct AQIWidgetProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> AQIWidgetEntry { .placeholder }
+
+    func snapshot(for configuration: AirQualityWidgetIntent, in context: Context) async -> AQIWidgetEntry {
+        context.isPreview && SharedDataStore.load() == nil ? .placeholder : await AQIWidgetTimeline.entry()
+    }
+
+    func timeline(for configuration: AirQualityWidgetIntent, in context: Context) async -> Timeline<AQIWidgetEntry> {
+        await AQIWidgetTimeline.timeline()
+    }
+}
+
+/// Small circular refresh control for the Home Screen widgets.
+struct WidgetRefreshButton: View {
+    var body: some View {
+        Button(intent: RefreshAirQualityIntent()) {
+            Image(systemName: "arrow.clockwise")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.8))
+                .frame(width: 22, height: 22)
+                .background(.white.opacity(0.15), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Refresh air quality")
     }
 }

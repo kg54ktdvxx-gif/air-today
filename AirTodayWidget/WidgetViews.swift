@@ -7,46 +7,197 @@ struct AQIWidgetEntryView: View {
 
     @Environment(\.widgetFamily) var family
 
-    private var isNoData: Bool {
-        entry.isStale && entry.aqi == 0
-    }
-
     var body: some View {
         Group {
-            if isNoData {
-                noDataView
+            if let quality = entry.quality, let shown = entry.reading, let guidance = entry.guidance {
+                content(quality: quality, scale: shown.scale, reading: shown.reading, verdict: guidance.verdict)
             } else {
-                contentView
+                WidgetNoDataView(family: family)
             }
         }
         .widgetURL(URL(string: "airtoday://open"))
     }
 
     @ViewBuilder
-    private var contentView: some View {
+    private func content(quality: AirQuality, scale: AQIScale, reading: ScaledReading, verdict: String) -> some View {
         switch family {
-        case .systemSmall:
-            systemSmallView
         case .systemMedium:
-            systemMediumView
+            systemMedium(quality: quality, scale: scale, reading: reading, verdict: verdict)
         case .accessoryCircular:
-            accessoryCircularView
+            accessoryCircular(scale: scale, reading: reading)
         case .accessoryInline:
-            accessoryInlineView
+            accessoryInline(scale: scale, reading: reading)
         case .accessoryRectangular:
-            accessoryRectangularView
+            accessoryRectangular(scale: scale, reading: reading, verdict: verdict)
         default:
-            systemSmallView
+            systemSmall(quality: quality, scale: scale, reading: reading, verdict: verdict)
         }
     }
 
-    // MARK: - No Data
+    private func spokenSummary(quality: AirQuality, scale: AQIScale, reading: ScaledReading, verdict: String) -> String {
+        "\(verdict). \(scale.accessibilityName): \(reading.value), \(reading.band.longName). Station: \(quality.station.name)\(entry.isStale ? ". Data may be outdated." : "")"
+    }
 
-    @ViewBuilder
-    private var noDataView: some View {
+    // MARK: - System Small
+
+    private func systemSmall(quality: AirQuality, scale: AQIScale, reading: ScaledReading, verdict: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(scale.shortName)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.7))
+                if entry.isStale {
+                    Image(systemName: "exclamationmark.circle")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                Spacer()
+                WidgetRefreshButton()
+            }
+
+            Text("\(reading.value)")
+                .font(.system(size: 48, weight: .thin, design: .rounded))
+                .foregroundStyle(.white)
+                .contentTransition(.numericText())
+
+            Spacer(minLength: 0)
+
+            Text(verdict)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.8))
+                .lineLimit(2)
+
+            Text(quality.station.name)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.5))
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(spokenSummary(quality: quality, scale: scale, reading: reading, verdict: verdict))
+    }
+
+    // MARK: - System Medium
+
+    private func systemMedium(quality: AirQuality, scale: AQIScale, reading: ScaledReading, verdict: String) -> some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(scale.shortName)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.7))
+
+                Text("\(reading.value)")
+                    .font(.system(size: 48, weight: .thin, design: .rounded))
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText())
+
+                Text(reading.band.name)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
+
+            Rectangle()
+                .fill(.white.opacity(0.3))
+                .frame(width: 1)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    if let dominant = reading.dominantPollutant {
+                        Label(dominant.displayName, systemImage: "aqi.medium")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                    Spacer()
+                    WidgetRefreshButton()
+                }
+
+                Label(verdict, systemImage: quality.level.verdictIcon)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+
+                HStack {
+                    Text(quality.station.name)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .lineLimit(1)
+
+                    if entry.isStale {
+                        Image(systemName: "exclamationmark.circle")
+                            .font(.caption2)
+                            .foregroundStyle(.orange.opacity(0.7))
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(spokenSummary(quality: quality, scale: scale, reading: reading, verdict: verdict))
+    }
+
+    // MARK: - Accessory Circular
+
+    private func accessoryCircular(scale: AQIScale, reading: ScaledReading) -> some View {
+        Gauge(value: gaugeFraction(scale: scale, value: reading.value)) {
+            Text(scale == .ukDAQI ? "DAQI" : "AQI")
+        } currentValueLabel: {
+            Text("\(reading.value)")
+                .font(.system(.body, design: .rounded, weight: .medium))
+        }
+        .gaugeStyle(.accessoryCircularCapacity)
+        .tint(reading.band.color)
+        .accessibilityLabel("\(scale.accessibilityName): \(reading.value), \(reading.band.longName)")
+    }
+
+    /// How full the gauge is on the scale's own range.
+    private func gaugeFraction(scale: AQIScale, value: Int) -> Double {
+        let top: Double = switch scale {
+        case .usEPA: 500
+        case .euCAQI: 125
+        case .ukDAQI: 10
+        }
+        return min(Double(value) / top, 1)
+    }
+
+    // MARK: - Accessory Rectangular
+
+    private func accessoryRectangular(scale: AQIScale, reading: ScaledReading, verdict: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Text("\(reading.value)")
+                    .font(.headline.weight(.semibold))
+                Text(reading.band.name)
+                    .font(.caption)
+            }
+            Text(verdict)
+                .font(.caption2)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(scale.accessibilityName): \(reading.value), \(reading.band.longName). \(verdict)")
+    }
+
+    // MARK: - Accessory Inline
+
+    private func accessoryInline(scale: AQIScale, reading: ScaledReading) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "aqi.medium")
+            Text("\(scale == .ukDAQI ? "DAQI" : "AQI") \(reading.value) · \(reading.band.name)")
+        }
+        .accessibilityLabel("\(scale.accessibilityName): \(reading.value), \(reading.band.longName)")
+    }
+}
+
+/// Shown before the app has ever loaded a reading.
+struct WidgetNoDataView: View {
+    let family: WidgetFamily
+
+    var body: some View {
         switch family {
         case .accessoryCircular:
-            // Show empty gauge with "–"
             ZStack {
                 AccessoryWidgetBackground()
                 Image(systemName: "aqi.medium")
@@ -66,7 +217,6 @@ struct AQIWidgetEntryView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel("Air quality data unavailable. Open app to load data.")
         default:
-            // System small/medium
             VStack(spacing: 8) {
                 Image(systemName: "aqi.medium")
                     .font(.title)
@@ -81,142 +231,5 @@ struct AQIWidgetEntryView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Air quality data unavailable. Open Air Today to load data.")
         }
-    }
-
-    // MARK: - System Small
-
-    private var systemSmallView: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text("AQI")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.7))
-
-                Spacer()
-
-                if entry.isStale {
-                    Image(systemName: "exclamationmark.circle")
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.4))
-                }
-            }
-
-            Text("\(entry.aqi)")
-                .font(.system(size: 48, weight: .thin, design: .rounded))
-                .foregroundStyle(.white)
-                .contentTransition(.numericText())
-
-            Spacer()
-
-            Text(entry.level.verdict)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.7))
-                .lineLimit(2)
-
-            Text(entry.stationName)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.5))
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label). \(entry.level.verdict). Station: \(entry.stationName)\(entry.isStale ? ". Data may be outdated." : "")")
-    }
-
-    // MARK: - System Medium
-
-    private var systemMediumView: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("AQI")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.7))
-
-                Text("\(entry.aqi)")
-                    .font(.system(size: 48, weight: .thin, design: .rounded))
-                    .foregroundStyle(.white)
-                    .contentTransition(.numericText())
-
-                Text(entry.level.shortLabel)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.9))
-            }
-
-            Rectangle()
-                .fill(.white.opacity(0.3))
-                .frame(width: 1)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Label(entry.dominantPollutant, systemImage: "aqi.medium")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.9))
-
-                Label(entry.level.verdict, systemImage: entry.level.verdictIcon)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-                    .lineLimit(2)
-
-                Spacer()
-
-                HStack {
-                    Text(entry.stationName)
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.5))
-                        .lineLimit(1)
-
-                    if entry.isStale {
-                        Image(systemName: "exclamationmark.circle")
-                            .font(.caption2)
-                            .foregroundStyle(.orange.opacity(0.7))
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label). \(entry.level.verdict). Dominant pollutant: \(entry.dominantPollutant). Station: \(entry.stationName)\(entry.isStale ? ". Data may be outdated." : "")")
-    }
-
-    // MARK: - Accessory Circular
-
-    private var accessoryCircularView: some View {
-        Gauge(value: Double(min(entry.aqi, 500)), in: 0...500) {
-            Text("AQI")
-        } currentValueLabel: {
-            Text("\(entry.aqi)")
-                .font(.system(.body, design: .rounded, weight: .medium))
-        }
-        .gaugeStyle(.accessoryCircularCapacity)
-        .tint(entry.level.color)
-        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label)")
-    }
-
-    // MARK: - Accessory Rectangular
-
-    private var accessoryRectangularView: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Text("\(entry.aqi)")
-                    .font(.headline.weight(.semibold))
-                Text(entry.level.shortLabel)
-                    .font(.caption)
-            }
-            Text(entry.level.verdict)
-                .font(.caption2)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label). \(entry.level.verdict)")
-    }
-
-    // MARK: - Accessory Inline
-
-    private var accessoryInlineView: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "aqi.medium")
-            Text("AQI \(entry.aqi) · \(entry.level.shortLabel)")
-        }
-        .accessibilityLabel("Air Quality Index \(entry.aqi), \(entry.level.label)")
     }
 }

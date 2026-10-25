@@ -81,35 +81,21 @@ public enum DailyPlanner {
 
     // MARK: - Best Window
 
-    /// WAQI forecasts are daily, so the window comes from how each pollutant
-    /// usually behaves through the day (as the activity card's "best window"):
-    /// ozone builds in afternoon sun, traffic particles ease after midday.
-    /// Only planned when the day isn't Good — on a good day any time is fine.
+    /// A reminder at the start of today's (or tomorrow's) best window. Only on days
+    /// that aren't Good and whose main pollutant has a daily pattern to plan around.
     static func bestWindow(for quality: AirQuality, now: Date, calendar: Calendar) -> PlannedNotification? {
         for dayOffset in 0...1 {
             guard let day = calendar.date(byAdding: .day, value: dayOffset, to: now),
-                  let outlook = outlook(for: quality, on: day, now: now),
-                  outlook.quality.level.rawValue >= AQILevel.moderate.rawValue
-            else { continue }
-
-            let window: (hour: Int, body: String)
-            switch outlook.quality.dominantPollutant {
-            case .o3:
-                window = (7, "Ozone builds through the afternoon — get outside before 10 AM.")
-            case .pm25, .pm10:
-                window = (12, "Particles usually ease after midday — early afternoon is likely the clearest time today.")
-            default:
-                continue
-            }
-
-            guard let fire = calendar.date(bySettingHour: window.hour, minute: 0, second: 0, of: day),
+                  let window = BestWindow.on(day, for: quality, now: now),
+                  let hour = window.startHour,
+                  let fire = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day),
                   fire > now
             else { continue }
 
             return PlannedNotification(
                 id: bestWindowID,
-                title: "Best time outside today",
-                body: window.body,
+                title: "Best time outside: \(window.headline)",
+                body: window.detail,
                 fireDate: fire
             )
         }

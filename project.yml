@@ -23,6 +23,8 @@ targets:
     platform: iOS
     sources:
       - path: AirTodayApp
+      # App Intents types used by both the app (Siri) and the widgets.
+      - path: Shared/Intents
     resources:
       - path: AirTodayApp/PrivacyInfo.xcprivacy
     dependencies:
@@ -57,6 +59,7 @@ targets:
     platform: iOS
     sources:
       - path: AirTodayWidget
+      - path: Shared/Intents
     resources:
       - path: AirTodayWidget/Assets.xcassets
     dependencies:
