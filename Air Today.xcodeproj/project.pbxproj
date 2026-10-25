@@ -35,7 +35,6 @@
 		DCF4CEECDFAFB0F051664D7D /* ActivityOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36DA6AD90D7223F9A8576602 /* ActivityOption.swift */; };
 		E1C1EC5FB1822DD9E671A8EC /* OnboardingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 433975A3CE1418EB8FC43AE0 /* OnboardingUITests.swift */; };
 		E34C1FFF09FCEA16493FC7A4 /* RefreshAirQualityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A3B94B378B06BB9B7A1D026 /* RefreshAirQualityIntent.swift */; };
-		E83BA70CB50DAB4981FCC3B2 /* AirTodayWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A1D982AC13679303EE14BBCD /* AirTodayWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F416312FF8047C0EA07DCC9A /* AirTodayCore in Frameworks */ = {isa = PBXBuildFile; productRef = ED6CC022D51A72D7AE943836 /* AirTodayCore */; };
 		F4D76CC73611F08037E88E86 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 41CA2F86F7A11F66F0EB5FDA /* PrivacyInfo.xcprivacy */; };
 		FCCD4E3773F63AB5026A3056 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 48FACEF71CB7C13D658740C5 /* PrivacyInfo.xcprivacy */; };
@@ -65,13 +64,6 @@
 			remoteGlobalIDString = 62ADC617CFEDE5EAFDE956A9;
 			remoteInfo = AirTodayWatchWidget;
 		};
-		884EA71F5C0F7B57FBE0A0EE /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 13E627BF822B24A97AA515B9 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = D4ABCAE417E00221817101F1;
-			remoteInfo = AirTodayWatch;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -95,17 +87,6 @@
 				AD28C0C0AE9ECFD4E1E33203 /* AirTodayWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		DEE722CA062C90AE676A6BA1 /* Embed Watch Content */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
-			files = (
-				E83BA70CB50DAB4981FCC3B2 /* AirTodayWatch.app in Embed Watch Content */,
-			);
-			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -382,13 +363,11 @@
 				F24447522E7F3B2598DDBC10 /* Resources */,
 				DD1D4ACAC76937E64BAB2805 /* Frameworks */,
 				990CCABEB17A75E0E6450DB2 /* Embed Foundation Extensions */,
-				DEE722CA062C90AE676A6BA1 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				B660C25C01B72F29C380080A /* PBXTargetDependency */,
-				0172EB28C74B9019E831990E /* PBXTargetDependency */,
 			);
 			name = "Air Today";
 			packageProductDependencies = (
@@ -558,11 +537,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		0172EB28C74B9019E831990E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = D4ABCAE417E00221817101F1 /* AirTodayWatch */;
-			targetProxy = 884EA71F5C0F7B57FBE0A0EE /* PBXContainerItemProxy */;
-		};
 		50C14BC06600A156A22D1F32 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 62ADC617CFEDE5EAFDE956A9 /* AirTodayWatchWidget */;

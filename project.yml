@@ -34,7 +34,9 @@ targets:
       - package: AirTodayCore
       - package: AirTodayUI
       - target: AirTodayWidgetExtension
-      - target: AirTodayWatch
+      # The Watch app is left out of 1.2.0 (its App IDs still need the shared App
+      # Group in the developer portal). Re-add to ship it again:
+      # - target: AirTodayWatch
     entitlements:
       path: AirTodayApp/AirToday.entitlements
       properties:

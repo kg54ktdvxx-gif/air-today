@@ -1,7 +1,7 @@
 # Air Today — App Store Metadata
 
 ## App Name (30 char max)
-`Air Today` (9 characters)
+`Air Today` (3,465 characters)
 
 ## Subtitle (30 char max)
 `Should You Be Outside Right Now?` (32 — too long)
@@ -36,9 +36,6 @@ GET WARNED WHEN AIR GETS WORSE
 • Best time to go out, from the hourly forecast
 • Spike alerts when the air worsens fast — often a sign of smoke nearby
 Every alert is independently togglable. No spam.
-
-ON YOUR WRIST
-The Apple Watch app gives you a glanceable verdict, number and best time before you head out. Complications for circular, corner, inline and rectangular faces.
 
 YOUR STANDARD, YOUR CHOICE
 Switch between the US EPA AQI, the European Air Quality Index and the UK Daily Air Quality Index. The European and UK indices are calculated from pollutant concentrations with each index's own averaging, and the verdict, activity advice and alerts follow whichever you pick.
@@ -90,10 +87,11 @@ Air Today 1.2 is about trust: numbers that are current, advice that matches the 
 • Get warned when air gets worse — one tap to turn on.
 • "About this advice" explains where the guidance and data come from.
 • A simpler main screen and Settings. The Live Activity is gone: Lock Screen widgets do its job and stay current.
+• The Apple Watch app sits this version out while it's updated for the new data; it will return in a future update.
 • Readings show their real age, stations that have stopped reporting are skipped, and saved cities stay on the station you picked.
 ```
 
-(1002 characters) — DRAFT for 1.2.0, not yet in App Store Connect.
+(1118 characters) — DRAFT for 1.2.0, not yet in App Store Connect.
 
 ## Promotional Text (170 char max)
 
