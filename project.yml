@@ -49,6 +49,8 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_FILE: AirTodayApp/Info.plist
         INFOPLIST_KEY_UIBackgroundModes: "fetch"
+        # HTTPS only: exempt from export compliance, so App Store Connect needn't ask per build.
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity
         MARKETING_VERSION: "1.2.0"
         CURRENT_PROJECT_VERSION: 10
