@@ -2,11 +2,10 @@ import SwiftUI
 import Charts
 import AirTodayCore
 
-/// The hourly forecast for today and tomorrow, then each later day's worst, on the
-/// chosen scale — overall or for one pollutant.
+/// Each pollutant's index now, and the hourly forecast for today and tomorrow, then
+/// each later day's worst, on the chosen scale — overall or for one pollutant.
 public struct ForecastGraphCard: View {
     let quality: AirQuality
-    let model: ModelAirData
     let scale: AQIScale
     /// Today's band colour, threaded quietly through the chart.
     let accent: Color
@@ -14,17 +13,15 @@ public struct ForecastGraphCard: View {
     /// Nil is the overall index.
     @State private var selectedPollutant: Pollutant.Kind?
 
-    /// Nil without model data: there's no forecast to draw.
-    public init?(quality: AirQuality, scale: AQIScale, accent: Color, now: Date = Date()) {
-        guard let model = quality.model else { return nil }
+    public init(quality: AirQuality, scale: AQIScale, accent: Color, now: Date = Date()) {
         self.quality = quality
-        self.model = model
         self.scale = scale
         self.accent = accent
         self.now = now
     }
 
-    private var calendar: Calendar { model.calendar }
+    private var model: ModelAirData? { quality.model }
+    private var calendar: Calendar { model?.calendar ?? .current }
 
     /// The end of tomorrow in the place's time.
     private var hourlyEnd: Date {
@@ -70,23 +67,33 @@ public struct ForecastGraphCard: View {
         return "The forecast is an estimate for the wider area: \(modelNow) now, where the station measures \(quality.aqi)."
     }
 
-    /// Pollutants with a forecast on this scale, in display order.
+    /// The scale's pollutants with a reading now or a forecast, in display order.
     private var availablePollutants: [Pollutant.Kind] {
-        let upcoming = model.upcoming(from: now)
-        let kinds: Set<Pollutant.Kind> = switch scale {
+        let upcoming = model?.upcoming(from: now) ?? []
+        let forecast: Set<Pollutant.Kind> = switch scale {
         case .usEPA: Set(upcoming.flatMap(\.usSubIndices.keys))
         case .euEAQI: Set(upcoming.flatMap(\.europeanSubIndices.keys))
         case .ukDAQI: Set(upcoming.flatMap(\.concentrations.keys))
         }
-        return Pollutant.Kind.allCases.filter { kinds.contains($0) && scale.pollutants.contains($0) }
+        return Pollutant.Kind.allCases.filter {
+            scale.pollutants.contains($0) && (forecast.contains($0) || scale.subIndex(for: $0, in: quality) != nil)
+        }
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             headerSection
-            chartSection
-            if !laterDays.isEmpty {
-                laterDaysRow
+            if model == nil {
+                Text("The forecast isn't available right now.")
+                    .font(DS.Typeface.caption)
+                    .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                    .padding(.horizontal, DS.spacingLG)
+                    .padding(.bottom, DS.spacingLG)
+            } else {
+                chartSection
+                if !laterDays.isEmpty {
+                    laterDaysRow
+                }
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: DS.cornerRadius))
@@ -98,17 +105,17 @@ public struct ForecastGraphCard: View {
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: DS.spacingSM) {
             Text("Forecast")
-                .font(.headline)
+                .font(DS.Typeface.cardTitle)
                 .foregroundStyle(.white)
                 .accessibilityAddTraits(.isHeader)
 
             ScrollView(.horizontal) {
                 HStack(spacing: DS.spacingSM) {
-                    pill("Overall", selected: selectedPollutant == nil, accessibility: "Overall \(scale.shortName)") {
+                    pill("Overall", value: scale.reading(for: quality)?.value, selected: selectedPollutant == nil, accessibility: "Overall \(scale.shortName)") {
                         selectedPollutant = nil
                     }
                     ForEach(availablePollutants) { kind in
-                        pill(kind.displayName, selected: selectedPollutant == kind, accessibility: kind.description) {
+                        pill(kind.displayName, value: scale.subIndex(for: kind, in: quality), selected: selectedPollutant == kind, accessibility: kind.description) {
                             selectedPollutant = kind
                         }
                     }
@@ -119,7 +126,7 @@ public struct ForecastGraphCard: View {
 
             if let sourceNote {
                 Text(sourceNote)
-                    .font(.caption)
+                    .font(DS.Typeface.caption)
                     .foregroundStyle(.white.opacity(DS.opacitySecondary))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -129,22 +136,32 @@ public struct ForecastGraphCard: View {
         .padding(.bottom, DS.cardHeaderBottom)
     }
 
-    private func pill(_ title: String, selected: Bool, accessibility: String, action: @escaping () -> Void) -> some View {
+    /// A pollutant (or the overall index) with its value now, so the pills double as
+    /// the list of pollutants.
+    private func pill(_ title: String, value: Int?, selected: Bool, accessibility: String, action: @escaping () -> Void) -> some View {
         Button {
             withAnimation(DS.Motion.quick) { action() }
         } label: {
-            Text(title)
-                .font(.system(.caption, design: .rounded, weight: .semibold))
-                .foregroundStyle(.white.opacity(selected ? 1 : DS.opacitySecondary))
-                .padding(.horizontal, DS.spacingMD)
-                .padding(.vertical, 6)
-                .background(Capsule().fill(.white.opacity(selected ? 0.2 : 0.06)))
-                .overlay(Capsule().strokeBorder(.white.opacity(selected ? 0.35 : 0.12)))
-                .contentShape(Capsule())
+            HStack(spacing: 6) {
+                if let value {
+                    DS.colorDot(scale.band(forValue: value).color, size: 6)
+                }
+                Text(title)
+                if let value {
+                    Text("\(value)")
+                        .monospacedDigit()
+                }
+            }
+            .font(DS.Typeface.captionStrong)
+            .foregroundStyle(.white.opacity(selected ? 1 : DS.opacitySecondary))
+            .padding(.horizontal, DS.spacingMD)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(selected ? DS.selectedFill : DS.chipFill))
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: selected) { _, new in new }
-        .accessibilityLabel(accessibility)
+        .accessibilityLabel(value.map { "\(accessibility), \($0), \(scale.band(forValue: $0).longName)" } ?? accessibility)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
@@ -177,27 +194,35 @@ public struct ForecastGraphCard: View {
                 .lineStyle(StrokeStyle(lineWidth: 2))
             }
 
+            // Only two points are labelled: now, and the worst hour if it's later. "Now"
+            // carries no number: the chart is the area forecast, and the headline above
+            // may be a station's measurement.
             if let first = points.first {
                 PointMark(x: .value("Hour", first.time), y: .value(scale.compactName, first.value))
                     .foregroundStyle(scale.band(forValue: first.value).color)
                     .symbolSize(40)
-                    .annotation(position: .top, spacing: 4) {
-                        Text("Now")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                    .annotation(position: .top, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                        chartLabel("Now")
+                    }
+            }
+            if let peak = points.max(by: { $0.value < $1.value }), peak.time != points.first?.time {
+                PointMark(x: .value("Hour", peak.time), y: .value(scale.compactName, peak.value))
+                    .foregroundStyle(scale.band(forValue: peak.value).color)
+                    .symbolSize(30)
+                    .annotation(position: .top, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                        chartLabel("\(peak.value) at \(ActivityGuidanceService.hourText(peak.time, calendar: calendar))")
                     }
             }
 
-            // Band boundaries for the chosen scale
+            // Band boundaries for the chosen scale, named at the right-hand edge.
             ForEach(scale.chartThresholds, id: \.label) { threshold in
                 RuleMark(y: .value(threshold.label, threshold.value))
-                    .foregroundStyle(threshold.color.opacity(DS.opacityTertiary))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .annotation(position: .top, alignment: .leading, spacing: 2) {
+                    .foregroundStyle(threshold.color.opacity(0.35))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    .annotation(position: .top, alignment: .trailing, spacing: 2) {
                         Text(threshold.label)
-                            .font(.system(size: 9, weight: .medium))
+                            .font(DS.Typeface.fine)
                             .foregroundStyle(threshold.color.opacity(DS.opacitySecondary))
-                            .padding(.leading, 4)
                     }
             }
         }
@@ -207,35 +232,29 @@ public struct ForecastGraphCard: View {
                 if let date = value.as(Date.self) {
                     AxisValueLabel {
                         Text(axisLabel(date))
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(calendar.component(.hour, from: date) == 0 ? DS.opacityPrimary : DS.opacitySecondary))
-                    }
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: calendar.component(.hour, from: date) == 0 ? 1 : 0.5))
-                        .foregroundStyle(.white.opacity(DS.opacityDivider))
-                }
-            }
-        }
-        .chartYAxis {
-            AxisMarks(position: .trailing) { value in
-                AxisValueLabel {
-                    if let intVal = value.as(Int.self) {
-                        Text("\(intVal)")
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                            .font(DS.Typeface.fine)
+                            .foregroundStyle(.white.opacity(calendar.component(.hour, from: date) == 0 ? DS.opacityPrimary : DS.opacityTertiary))
                     }
                 }
             }
         }
+        .chartYAxis(.hidden)
         // Hours and day boundaries in the place's own time.
         .environment(\.calendar, calendar)
         .environment(\.timeZone, calendar.timeZone)
         .frame(height: 180)
-        .padding(.leading, DS.spacingLG)
-        .padding(.trailing, DS.spacingLG + 8)
+        .padding(.horizontal, DS.spacingLG)
         .padding(.bottom, DS.spacingLG)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Hourly forecast, today and tomorrow")
         .accessibilityValue(Self.summary(points, scale: scale, calendar: calendar))
+    }
+
+    private func chartLabel(_ text: String) -> some View {
+        Text(text)
+            .font(DS.Typeface.fine.weight(.semibold))
+            .monospacedDigit()
+            .foregroundStyle(.white.opacity(DS.opacityPrimary))
     }
 
     /// "6 AM", "12 PM", and the weekday at midnight.
@@ -277,18 +296,16 @@ public struct ForecastGraphCard: View {
                     let band = scale.band(forValue: day.value)
                     VStack(spacing: DS.spacingXS) {
                         Text(day.day.formatted(Date.FormatStyle(locale: .current, calendar: calendar, timeZone: calendar.timeZone).weekday(.abbreviated)))
-                            .font(.caption2.weight(.semibold))
+                            .font(DS.Typeface.fine.weight(.semibold))
                             .foregroundStyle(.white.opacity(DS.opacitySecondary))
                         HStack(spacing: DS.spacingXS) {
-                            Circle()
-                                .fill(band.color)
-                                .frame(width: 8, height: 8)
+                            DS.colorDot(band.color)
                             Text("\(day.value)")
-                                .font(.subheadline.weight(.semibold).monospacedDigit())
+                                .font(DS.Typeface.body.weight(.semibold).monospacedDigit())
                                 .foregroundStyle(.white)
                         }
                         Text(band.name)
-                            .font(.caption2)
+                            .font(DS.Typeface.fine)
                             .foregroundStyle(.white.opacity(DS.opacityTertiary))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -303,7 +320,7 @@ public struct ForecastGraphCard: View {
             .padding(.horizontal, DS.spacingSM)
 
             Text("Later days show each day's worst hour.")
-                .font(.caption2)
+                .font(DS.Typeface.fine)
                 .foregroundStyle(.white.opacity(DS.opacityTertiary))
                 .padding(.bottom, DS.spacingMD)
         }

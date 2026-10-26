@@ -94,9 +94,14 @@ struct ActivityCheckView: View {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.white.opacity(0.8))
 
-            Text(rec.recommendation.label)
-                .font(.system(.title, design: .rounded, weight: .bold))
-                .foregroundStyle(rec.recommendation.widgetColor)
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(color(for: rec))
+                    .frame(width: 12, height: 12)
+                Text(rec.recommendation.label)
+                    .font(.title.weight(.bold))
+                    .foregroundStyle(.white)
+            }
 
             Spacer(minLength: 0)
 
@@ -114,6 +119,11 @@ struct ActivityCheckView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(spoken(rec))
+    }
+
+    /// The shown scale's colour for the advice, as in the app.
+    private func color(for rec: ActivityRec) -> Color {
+        (entry.base.reading?.scale ?? entry.base.scale).color(for: rec.recommendation.level)
     }
 
     private func rectangular(_ rec: ActivityRec) -> some View {
@@ -145,17 +155,5 @@ struct ActivityCheckView: View {
         }
         .widgetAccentable()
         .accessibilityLabel(spoken(rec))
-    }
-}
-
-extension Rec {
-    /// Matches the activity card's colours in the app.
-    var widgetColor: Color {
-        switch self {
-        case .great: .green
-        case .ok: .blue
-        case .caution: .orange
-        case .avoid: .red
-        }
     }
 }

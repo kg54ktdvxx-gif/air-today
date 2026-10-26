@@ -17,16 +17,15 @@ struct AlertsOfferCard: View {
             HStack(alignment: .top, spacing: DS.spacingMD) {
                 Image(systemName: "bell.badge.fill")
                     .font(.title2)
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.orange, .white)
+                    .foregroundStyle(.white)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Get warned when air gets worse")
-                        .font(.subheadline.weight(.semibold))
+                        .font(DS.Typeface.rowTitle)
                         .foregroundStyle(.white)
                     Text("At \(scale.bandName(for: level)) on the \(scale.shortName), here and in the places you save.")
-                        .font(.caption)
+                        .font(DS.Typeface.caption)
                         .foregroundStyle(.white.opacity(DS.opacitySecondary))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -46,7 +45,7 @@ struct AlertsOfferCard: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.white.opacity(0.25))
+                .tint(DS.selectedFill)
 
                 Button {
                     alertsOffered = true
@@ -61,8 +60,6 @@ struct AlertsOfferCard: View {
             }
         }
         .padding(DS.spacingLG)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DS.cornerRadius))
-        .overlay(RoundedRectangle(cornerRadius: DS.cornerRadius).strokeBorder(.white.opacity(0.15)))
-        .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+        .background { DS.cardBackground }
     }
 }

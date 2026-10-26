@@ -21,7 +21,7 @@ final class StoreScreenshotTests: XCTestCase {
 
     /// Waits for the page's source line, which appears once a reading has loaded.
     private func waitForReading(timeout: TimeInterval = 40) {
-        let source = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Measured at' OR label BEGINSWITH 'Estimated for this area'")).firstMatch
+        let source = app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' station · ' OR label BEGINSWITH 'Area estimate'")).firstMatch
         XCTAssertTrue(source.waitForExistence(timeout: timeout), "No reading loaded")
     }
 
@@ -84,12 +84,12 @@ final class StoreScreenshotTests: XCTestCase {
     func testAlertsStep() {
         app.launchArguments += ["-uitest-onboarding", "-uitest-effects"]
         app.launch()
-        for label in ["Get Started", "Continue", "Continue", "Skip for Now"] {
+        for label in ["Get Started", "Continue"] {
             let button = app.buttons[label]
             XCTAssertTrue(button.waitForExistence(timeout: 20), "No \(label)")
             button.tap()
         }
-        XCTAssertTrue(app.staticTexts["Get warned when air gets worse"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["Location and alerts"].waitForExistence(timeout: 20))
         snap("07_alerts")
     }
 }

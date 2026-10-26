@@ -77,6 +77,16 @@ public enum Rec: Int, Comparable, Sendable {
         }
     }
 
+    /// The severity level whose colour this advice takes, on whichever scale is shown.
+    public var level: AQILevel {
+        switch self {
+        case .great: .good
+        case .ok: .moderate
+        case .caution: .sensitive
+        case .avoid: .unhealthy
+        }
+    }
+
     public var icon: String {
         switch self {
         case .great: "checkmark.circle.fill"

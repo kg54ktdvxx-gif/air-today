@@ -146,4 +146,28 @@ struct AQIScaleTests {
         #expect(AQIScale.ukDAQI.bandName(for: .unhealthy) == "Very High (10)")
         #expect(AQIScale.euEAQI.bandName(for: .sensitive) == "Poor")
     }
+
+    // MARK: - Colours
+
+    @Test("Each ladder level's colour is one of the scale's own band colours, from a band placed on that level")
+    func levelColoursComeFromTheBands() {
+        let values: [AQIScale: ClosedRange<Int>] = [.usEPA: 0...500, .euEAQI: 0...200, .ukDAQI: 1...10]
+        for scale in AQIScale.allCases {
+            let range = values[scale]!
+            for level in AQILevel.allCases {
+                let onLevel = range.filter { Severity.level(at: Severity.position(of: $0, on: scale)) == level }
+                // Levels above a scale's top band take the top band's colour.
+                let candidates = onLevel.isEmpty ? [range.upperBound] : onLevel
+                let colors = candidates.map { scale.band(forValue: $0).color }
+                #expect(colors.contains(scale.color(for: level)), "\(scale) \(level)")
+            }
+        }
+    }
+
+    @Test("Activity advice takes the colours of the levels it stands for")
+    func adviceColours() {
+        #expect(AQIScale.usEPA.color(for: Rec.great.level) == AQILevel.good.color)
+        #expect(AQIScale.usEPA.color(for: Rec.avoid.level) == AQILevel.unhealthy.color)
+        #expect(AQIScale.euEAQI.color(for: Rec.ok.level) == EAQIBands.colors[2])
+    }
 }

@@ -19,11 +19,11 @@ struct HealthTile: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.subheadline.weight(.semibold))
+                        .font(DS.Typeface.rowTitle)
                         .foregroundStyle(.white)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(detail)
-                        .font(.caption)
+                        .font(DS.Typeface.caption)
                         .foregroundStyle(.white.opacity(DS.opacitySecondary))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -38,17 +38,12 @@ struct HealthTile: View {
             .padding(DS.spacingLG)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
-                // Material keeps the copy readable over bright photo backgrounds.
-                RoundedRectangle(cornerRadius: DS.cornerRadius)
-                    .fill(.ultraThinMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: DS.cornerRadius)
-                            .fill(isOn ? .white.opacity(0.2) : .black.opacity(0.25))
-                    }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: DS.cornerRadius)
-                    .strokeBorder(.white.opacity(isOn ? 0.6 : 0.15), lineWidth: isOn ? 1.5 : 1)
+                // The app's glass, lifted when chosen; the checkmark says which.
+                if isOn {
+                    DS.liftedGlass(in: RoundedRectangle(cornerRadius: DS.cornerRadius))
+                } else {
+                    DS.cardBackground
+                }
             }
             .contentShape(RoundedRectangle(cornerRadius: DS.cornerRadius))
         }

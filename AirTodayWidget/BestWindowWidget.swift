@@ -85,7 +85,7 @@ struct BestWindowView: View {
                 WidgetRefreshButton()
             }
             Text(window.headline)
-                .font(.system(.title3, design: .rounded, weight: .bold))
+                .font(.title3.weight(.bold))
                 .foregroundStyle(.white)
                 .minimumScaleFactor(0.8)
             Spacer(minLength: 0)
@@ -108,7 +108,7 @@ struct BestWindowView: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.white.opacity(0.8))
                 Text(window.headline)
-                    .font(.system(.title2, design: .rounded, weight: .bold))
+                    .font(.title2.weight(.bold))
                     .foregroundStyle(.white)
                 Text(window.detail)
                     .font(.caption)

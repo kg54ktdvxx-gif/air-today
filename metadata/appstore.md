@@ -15,7 +15,7 @@ Air Today turns air quality into something you can feel. Instead of burying you 
 The number is there if you want it. But the real answer is the verdict above it: "Great day to be outside" or "Limit prolonged outdoor exertion." Plain language, no interpretation required.
 
 ALWAYS CURRENT
-Air Today shows the nearest monitoring station when it has reported in the last two hours and is close by. Otherwise it shows a live estimate for your area from the Copernicus Atmosphere Monitoring Service — and always says which you're looking at, how far away and how fresh.
+Air Today shows the nearest monitoring station when it has reported in the last two hours and is close by. Otherwise it shows a live estimate for your area from the Copernicus Atmosphere Monitoring Service — and always says which you're looking at and how fresh it is.
 
 KNOW WHAT YOU CAN DO TODAY
 Advice for the things that actually matter:

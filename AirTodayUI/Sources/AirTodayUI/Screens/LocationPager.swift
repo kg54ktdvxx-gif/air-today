@@ -51,19 +51,11 @@ public struct LocationPager: View {
                     pagerContent
                 }
 
-                // Top bar: page dots + settings
+                // Top bar: city dots (and menu) + settings
                 VStack(spacing: 0) {
                     HStack {
                         pageIndicator
                         Spacer()
-                        if locationManager.canAddLocation {
-                            Button {
-                                showingSearch = true
-                            } label: {
-                                topBarIcon("plus")
-                            }
-                            .accessibilityLabel("Add City")
-                        }
                         NavigationLink(value: AppRoute.settings) {
                             topBarIcon("gearshape")
                         }
@@ -148,9 +140,6 @@ public struct LocationPager: View {
                     LocationPage(
                         store: store,
                         location: location,
-                        userCoordinate: location.isCurrentLocation
-                            ? locationService.coordinate.map(Coordinate.init)
-                            : nil,
                         onScrollOffsetChange: { scrollState.pageOffsets[location.id] = $0 }
                     ) {
                         await locationManager.refresh(location: location)
@@ -180,8 +169,7 @@ public struct LocationPager: View {
             .foregroundStyle(.white.opacity(0.9))
             .frame(width: 20, height: 20)
             .padding(8)
-            .background(.black.opacity(0.25), in: Circle())
-            .shadow(color: .black.opacity(0.3), radius: 4)
+            .background(.black.opacity(0.2), in: Circle())
     }
 
     // MARK: - Page Indicator
@@ -193,26 +181,27 @@ public struct LocationPager: View {
     }
 
     /// The current location is an arrow (as in Weather) so it's always findable; every
-    /// other city is a dot in its own air-quality colour, so the dots aren't anonymous.
+    /// other city is a dot in its own air-quality colour. The page showing is the
+    /// widest, like the system page control; its name is the page's own title.
     @ViewBuilder
     private func marker(for location: SavedLocation, color: Color, isSelected: Bool) -> some View {
         if location.isCurrentLocation {
             Image(systemName: "location.fill")
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(color.opacity(isSelected ? 1 : 0.8))
-                .frame(width: 9, height: 9)
+                .font(.system(size: isSelected ? 10 : 8, weight: .bold))
+                .foregroundStyle(color.opacity(isSelected ? 1 : 0.55))
+                .frame(width: 11, height: 11)
         } else {
-            Circle()
-                .fill(color.opacity(isSelected ? 1 : 0.7))
-                .frame(width: 7, height: 7)
+            Capsule()
+                .fill(color.opacity(isSelected ? 1 : 0.55))
+                .frame(width: isSelected ? 16 : 7, height: 7)
         }
     }
 
     /// Where you are in your cities, and a menu of all of them.
     ///
-    /// The capsule shows the current city's name and position, with a marker per city
-    /// (arrow for your location, dots in each city's AQI colour). Tapping it lists every
-    /// city by name with its reading — colour alone can't tell two Good cities apart.
+    /// A marker per city (arrow for your location, dots in each city's AQI colour).
+    /// Tapping it lists every city by name with its reading — colour alone can't tell
+    /// two Good cities apart — and is where cities are added.
     private var pageIndicator: some View {
         let locations = locationManager.locations
         let selectedIndex = locations.firstIndex { $0.id == locationManager.selectedLocationID }
@@ -231,6 +220,14 @@ public struct LocationPager: View {
                     Image(systemName: index == selectedIndex
                         ? "checkmark"
                         : location.isCurrentLocation ? "location.fill" : "mappin")
+                }
+            }
+            if locationManager.canAddLocation {
+                Divider()
+                Button {
+                    showingSearch = true
+                } label: {
+                    Label("Add City…", systemImage: "plus")
                 }
             }
         } label: {
@@ -256,54 +253,18 @@ public struct LocationPager: View {
     }
 
     private func indicatorCapsule(locations: [SavedLocation], selectedIndex: Int?) -> some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 6) {
             ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
-                let isSelected = index == selectedIndex
-                let levelColor = bandColor(for: location)
-
-                HStack(spacing: 4) {
-                    marker(for: location, color: levelColor, isSelected: isSelected)
-
-                    if isSelected {
-                        HStack(spacing: 0) {
-                            Text(shortName(location))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                            // Position only means something once there's more than one place.
-                            if locations.count > 1 {
-                                Text(" \(index + 1)/\(locations.count)")
-                                    .monospacedDigit()
-                                    .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                                    .fixedSize()
-                            }
-                        }
-                        .font(.system(.caption2, design: .rounded, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
-                    }
-                }
-                .padding(.horizontal, isSelected ? 10 : 5)
-                .padding(.vertical, 5)
-                .background {
-                    if isSelected {
-                        // The page's AQI colour, quietly, behind its name.
-                        Capsule()
-                            .fill(.black.opacity(0.35))
-                            .overlay(Capsule().fill(levelColor.opacity(0.22)))
-                    }
-                }
+                marker(for: location, color: bandColor(for: location), isSelected: index == selectedIndex)
             }
 
             Image(systemName: "chevron.down")
-                .font(.system(size: 9, weight: .bold))
+                .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                .padding(.leading, 2)
-                .padding(.trailing, 6)
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
         .background(.black.opacity(0.2), in: Capsule())
-        .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
         // Full-height hit area: the visible capsule is shorter than a comfortable tap.
         .frame(minHeight: 44)
         .contentShape(Rectangle())
@@ -316,7 +277,7 @@ public struct LocationPager: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            VStack(spacing: 20) {
+            VStack(spacing: DS.spacingXL) {
                 Image(systemName: "aqi.medium")
                     .font(.system(size: 56))
                     .foregroundStyle(.white.opacity(0.3))
@@ -326,11 +287,11 @@ public struct LocationPager: View {
                     .foregroundStyle(.white)
 
                 Text("Add a city or enable location access\nto see air quality data")
-                    .font(.subheadline)
+                    .font(DS.Typeface.body)
                     .foregroundStyle(.white.opacity(DS.opacitySecondary))
                     .multilineTextAlignment(.center)
 
-                VStack(spacing: 12) {
+                VStack(spacing: DS.spacingMD) {
                     if locationService.isDenied {
                         Button {
                             if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -341,7 +302,7 @@ public struct LocationPager: View {
                                 .frame(maxWidth: 220)
                         }
                         .buttonStyle(.bordered)
-                        .tint(.blue)
+                        .tint(.white)
                     }
 
                     Button {
@@ -351,7 +312,7 @@ public struct LocationPager: View {
                             .frame(maxWidth: 220)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.blue)
+                    .tint(DS.selectedFill)
                 }
                 .padding(.top, 8)
             }
@@ -364,14 +325,14 @@ public struct LocationPager: View {
         HStack(spacing: DS.spacingMD) {
             Image(systemName: "location.slash.fill")
                 .font(.title3)
-                .foregroundStyle(.orange)
+                .foregroundStyle(.white)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Location Access Disabled")
-                    .font(.subheadline.weight(.medium))
+                    .font(DS.Typeface.rowTitle)
                     .foregroundStyle(.white)
                 Text("Enable location for accurate local air quality")
-                    .font(.caption)
+                    .font(DS.Typeface.caption)
                     .foregroundStyle(.white.opacity(DS.opacitySecondary))
             }
 
@@ -382,12 +343,12 @@ public struct LocationPager: View {
                     UIApplication.shared.open(url)
                 }
             }
-            .font(.caption.weight(.semibold))
+            .font(DS.Typeface.captionStrong)
             .buttonStyle(.bordered)
-            .tint(.orange)
+            .tint(.white)
         }
         .padding(DS.spacingMD)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: DS.cornerRadiusSM))
+        .background { DS.glass(in: RoundedRectangle(cornerRadius: DS.cornerRadiusSM)) }
         .padding(.horizontal, DS.spacingLG)
     }
 }
@@ -461,8 +422,7 @@ private struct PagerRefreshIndicator: View {
                 ProgressView()
                     .tint(store?.currentAQI.map { scale.displayReading(for: $0).reading.band.color } ?? .white)
                     .padding(10)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .shadow(color: .black.opacity(0.3), radius: 4)
+                    .background { DS.glass(in: Circle()) }
                     .transition(.opacity.combined(with: .scale(scale: 0.6)))
                     .accessibilityLabel("Refreshing")
             }

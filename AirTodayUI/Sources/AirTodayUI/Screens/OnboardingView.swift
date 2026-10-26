@@ -1,13 +1,16 @@
 import SwiftUI
 import AirTodayCore
 
-/// First-launch onboarding — what the app does, how it looks when the air is bad,
-/// the optional health profile, location, then alerts.
+/// First-launch onboarding in three steps — what the app does (the sky behind it
+/// hazes over and clears to show how it looks when the air is bad), the optional
+/// health profile, then location and alerts.
 public struct OnboardingView: View {
     let locationService: LocationService
     let onComplete: () -> Void
 
     @State private var currentStep = Step.welcome
+    /// The welcome step's sky, which hazes over once and clears.
+    @State private var welcomeSky = AQILevel.good
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @AppStorage(HealthProfile.Key.respiratory, store: .shared) private var hasRespiratoryCondition = false
@@ -15,6 +18,7 @@ public struct OnboardingView: View {
     @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
     @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
     @AppStorage(NotificationPreferences.Key.alertsOffered, store: .shared) private var alertsOffered = false
+    @AppStorage(NotificationPreferences.Key.thresholdAlerts, store: .shared) private var thresholdAlerts = false
 
     /// From the health answers: those with a reason to be careful hear sooner.
     private var suggestedLevel: AQILevel {
@@ -31,22 +35,19 @@ public struct OnboardingView: View {
     }
 
     enum Step: Int, CaseIterable {
-        case welcome, atmosphere, you, location, alerts
+        case welcome, you, setup
 
         var label: String {
             switch self {
             case .welcome: "Welcome"
-            case .atmosphere: "Atmosphere"
             case .you: "You"
-            case .location: "Location"
-            case .alerts: "Alerts"
+            case .setup: "Set Up"
             }
         }
+    }
 
-        /// The atmosphere step shows what a hazardous day looks like.
-        var backgroundLevel: AQILevel {
-            self == .atmosphere ? .hazardous : .good
-        }
+    private var backgroundLevel: AQILevel {
+        currentStep == .welcome ? welcomeSky : .good
     }
 
     public var body: some View {
@@ -56,16 +57,13 @@ public struct OnboardingView: View {
             VStack(spacing: 0) {
                 TabView(selection: $currentStep) {
                     welcomePage.tag(Step.welcome)
-                    atmospherePage.tag(Step.atmosphere)
                     youPage.tag(Step.you)
-                    locationPage.tag(Step.location)
-                    alertsPage.tag(Step.alerts)
+                    setupPage.tag(Step.setup)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .shadow(color: .black.opacity(0.45), radius: 6, y: 2)
 
                 stepIndicator
-                    .padding(.bottom, 16)
+                    .padding(.bottom, DS.spacingLG)
             }
         }
         .preferredColorScheme(.dark)
@@ -78,13 +76,13 @@ public struct OnboardingView: View {
             ZStack {
                 Color.black
 
-                ForEach(Step.allCases, id: \.self) { step in
-                    Image(step.backgroundLevel.backgroundImageName)
+                ForEach([AQILevel.good, .hazardous], id: \.self) { level in
+                    Image(level.backgroundImageName)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
-                        .opacity(step.backgroundLevel == currentStep.backgroundLevel ? 1 : 0)
+                        .opacity(level == backgroundLevel ? 1 : 0)
                 }
 
                 // Readability: darker at top and bottom where text and buttons sit.
@@ -94,7 +92,7 @@ public struct OnboardingView: View {
                     endPoint: .bottom
                 )
             }
-            .animation(DS.Motion.atmospheric, value: currentStep.backgroundLevel)
+            .animation(DS.Motion.atmospheric, value: backgroundLevel)
         }
         .ignoresSafeArea()
         .accessibilityHidden(true)
@@ -103,56 +101,47 @@ public struct OnboardingView: View {
     // MARK: - Welcome
 
     private var welcomePage: some View {
-        VStack(spacing: DS.spacingXL + 4) {
+        VStack(spacing: DS.spacingXL) {
             Spacer()
 
             Image(systemName: "aqi.medium")
                 .font(.system(size: 64))
-                .foregroundStyle(.white)
                 .symbolEffect(.breathe, isActive: !reduceMotion)
                 .accessibilityHidden(true)
 
-            Text("Air Today")
-                .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                .foregroundStyle(.white)
-
-            Text("Know when it's safe to be outside")
-                .font(.title3)
-                .foregroundStyle(.white.opacity(DS.opacityPrimary))
-                .multilineTextAlignment(.center)
+            VStack(spacing: DS.spacingSM) {
+                Text("Air Today")
+                    .font(.largeTitle.weight(.bold))
+                Text("Know when it's safe to be outside")
+                    .font(.title3)
+                    .foregroundStyle(.white.opacity(DS.opacityPrimary))
+            }
 
             Spacer()
 
-            nextButton("Get Started") { advance(to: .atmosphere) }
+            Text("The sky in Air Today follows the air: clear when it's clean, hazy when it isn't.")
+                .font(DS.Typeface.body)
+                .foregroundStyle(.white.opacity(DS.opacityPrimary))
+
+            nextButton("Get Started") { advance(to: .you) }
         }
+        .foregroundStyle(.white)
+        .multilineTextAlignment(.center)
+        .skyTextShadow()
         .padding(DS.spacingXXL)
+        .task { await hazeOverOnce() }
     }
 
-    // MARK: - Atmosphere
-
-    private var atmospherePage: some View {
-        VStack(spacing: DS.spacingSM) {
-            Spacer()
-
-            Text("Stay indoors")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-            Text(AQILevel.hazardous.label)
-                .font(.system(.title3, design: .rounded, weight: .semibold))
-                .foregroundStyle(.white.opacity(DS.opacityPrimary))
-
-            Spacer()
-
-            Text("The screen tells you the answer\nbefore the numbers do.")
-                .font(.title3)
-                .foregroundStyle(.white.opacity(DS.opacityPrimary))
-                .multilineTextAlignment(.center)
-                .padding(.bottom, DS.spacingXXL)
-
-            nextButton("Continue") { advance(to: .you) }
-        }
-        .padding(DS.spacingXXL)
-        .accessibilityElement(children: .contain)
+    /// Shows what a bad day looks like: the sky hazes over, then clears — and always
+    /// ends clear, even if the step is left part-way.
+    private func hazeOverOnce() async {
+        guard !reduceMotion else { return }
+        do {
+            try await Task.sleep(for: .seconds(2))
+            welcomeSky = .hazardous
+            try await Task.sleep(for: .seconds(3))
+        } catch {}
+        welcomeSky = .good
     }
 
     // MARK: - You
@@ -163,10 +152,10 @@ public struct OnboardingView: View {
 
             VStack(spacing: DS.spacingSM) {
                 Text("Tailor your guidance")
-                    .font(.system(.title, design: .rounded, weight: .bold))
+                    .font(DS.Typeface.stepTitle)
                     .foregroundStyle(.white)
                 Text("Optional — tap any that apply. We'll personalize your activity recommendations. Nothing leaves your device.")
-                    .font(.subheadline)
+                    .font(DS.Typeface.body)
                     .foregroundStyle(.white.opacity(DS.opacityPrimary))
                     .multilineTextAlignment(.center)
             }
@@ -194,93 +183,80 @@ public struct OnboardingView: View {
 
             Spacer()
 
-            nextButton("Continue") { advance(to: .location) }
+            nextButton("Continue") { advance(to: .setup) }
         }
+        .skyTextShadow()
         .padding(.horizontal, DS.spacingXL)
         .padding(.vertical, DS.spacingXXL)
     }
 
-    // MARK: - Location Permission
+    // MARK: - Location and Alerts
 
-    private var locationPage: some View {
-        VStack(spacing: DS.spacingXL + 4) {
+    private var setupPage: some View {
+        VStack(spacing: DS.spacingXL) {
             Spacer()
 
-            Image(systemName: "location.circle.fill")
-                .font(.system(size: 64))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(.black.opacity(0.8), .white)
-                .accessibilityHidden(true)
-
-            Text("Enable Location")
-                .font(.system(.title, design: .rounded, weight: .bold))
-                .foregroundStyle(.white)
-
-            Text("Air Today uses your location to show the air where you are. Your coordinates are sent only to fetch readings and forecasts (World Air Quality Index, Open-Meteo) and to Apple Maps for your town's name. Air Today has no server of its own and keeps no record of where you've been.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(DS.opacityPrimary))
-                .multilineTextAlignment(.center)
-
-            Spacer()
+            VStack(spacing: DS.spacingSM) {
+                Text("Location and alerts")
+                    .font(DS.Typeface.stepTitle)
+                    .foregroundStyle(.white)
+                Text("Both optional. You can change them in Settings.")
+                    .font(DS.Typeface.body)
+                    .foregroundStyle(.white.opacity(DS.opacityPrimary))
+                    .multilineTextAlignment(.center)
+            }
 
             VStack(spacing: DS.spacingMD) {
-                nextButton("Enable Location") {
-                    locationService.requestPermission()
-                    advance(to: .alerts)
-                }
+                HealthTile(
+                    icon: "location.fill",
+                    title: "Use my location",
+                    detail: "For the air where you are. Your coordinates go only to the World Air Quality Index, Open-Meteo and Apple Maps; Air Today has no server and keeps no record.",
+                    isOn: Binding(
+                        get: { locationService.hasPermission },
+                        set: { if $0 { requestLocation() } }
+                    )
+                )
+                HealthTile(
+                    icon: "bell.fill",
+                    title: "Alert me at \(scale.bandName(for: suggestedLevel))",
+                    detail: "When the air reaches it on the \(scale.shortName), here and in the places you save. Checked in the background.",
+                    isOn: Binding(
+                        get: { thresholdAlerts },
+                        set: { setAlerts($0) }
+                    )
+                )
+            }
 
-                Button("Skip for Now") {
-                    advance(to: .alerts)
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white.opacity(DS.opacityPrimary))
+            Spacer()
+
+            nextButton("Done") {
+                // Someone who left alerts off has had the offer; don't repeat it on the main screen.
+                if !thresholdAlerts { alertsOffered = true }
+                onComplete()
             }
         }
-        .padding(DS.spacingXXL)
+        .skyTextShadow()
+        .padding(.horizontal, DS.spacingXL)
+        .padding(.vertical, DS.spacingXXL)
     }
 
-    // MARK: - Alerts
-
-    private var alertsPage: some View {
-        VStack(spacing: DS.spacingXL + 4) {
-            Spacer()
-
-            Image(systemName: "bell.badge.fill")
-                .font(.system(size: 64))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(.orange, .white)
-                .accessibilityHidden(true)
-
-            Text("Get warned when air gets worse")
-                .font(.system(.title, design: .rounded, weight: .bold))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-
-            Text("Air Today checks in the background and tells you when the air reaches \(scale.bandName(for: suggestedLevel)) on the \(scale.shortName), wherever you are and in the places you save. You can change the level or turn it off in Settings.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(DS.opacityPrimary))
-                .multilineTextAlignment(.center)
-
-            Spacer()
-
-            VStack(spacing: DS.spacingMD) {
-                nextButton("Turn On Alerts") {
-                    let level = suggestedLevel
-                    Task {
-                        await NotificationPreferences.enableThresholdAlerts(at: level)
-                        onComplete()
-                    }
-                }
-
-                Button("Not Now") {
-                    alertsOffered = true
-                    onComplete()
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white.opacity(DS.opacityPrimary))
-            }
+    /// Asks, or — once someone has said no — opens Settings, where they can change it.
+    private func requestLocation() {
+        if locationService.isDenied, let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        } else {
+            locationService.requestPermission()
         }
-        .padding(DS.spacingXXL)
+    }
+
+    private func setAlerts(_ on: Bool) {
+        if on {
+            let level = suggestedLevel
+            Task { await NotificationPreferences.enableThresholdAlerts(at: level) }
+        } else {
+            thresholdAlerts = false
+            Task { await AlertCoordinator.preferencesChanged() }
+        }
     }
 
     // MARK: - Step Indicator
@@ -296,7 +272,7 @@ public struct OnboardingView: View {
 
                     if isSelected {
                         Text(step.label)
-                            .font(.system(.caption2, design: .rounded, weight: .semibold))
+                            .font(DS.Typeface.fine.weight(.semibold))
                             .foregroundStyle(.white)
                             .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                     }
@@ -330,8 +306,7 @@ public struct OnboardingView: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, DS.spacingLG)
-                .background(.white.opacity(0.25), in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.35)))
+                .background { DS.liftedGlass(in: RoundedRectangle(cornerRadius: DS.cornerRadiusSM)) }
         }
     }
 }

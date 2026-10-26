@@ -1,35 +1,65 @@
 import SwiftUI
 import AirTodayCore
 
-/// Every activity's recommendation, with today's outlook and the advice's basis as a footer.
-/// The verdict itself is the hero's, so it isn't repeated here.
+/// The activities, grouped by what they share — "All activities: Great" on a clean
+/// day, a row per distinct recommendation otherwise — with the best time, today's
+/// outlook and the advice's basis as a footer. The verdict itself is the hero's.
 public struct ActivityGuidanceCard: View {
     let guidance: ActivityGuidance
-    /// The current band's colour, along the card's leading edge.
-    let accent: Color
+    /// The chosen scale, which the advice follows.
     let scale: AQIScale
+    /// The scale on screen (US EPA when the chosen one needs model data that's missing),
+    /// whose colours the recommendations take.
+    let shownScale: AQIScale
     @State private var showingAbout = false
 
-    public init(guidance: ActivityGuidance, accent: Color, scale: AQIScale) {
+    public init(guidance: ActivityGuidance, scale: AQIScale, shownScale: AQIScale) {
         self.guidance = guidance
-        self.accent = accent
         self.scale = scale
+        self.shownScale = shownScale
+    }
+
+    /// Activities sharing a recommendation and reason, in the order they're listed.
+    struct Group: Identifiable {
+        let recommendation: Rec
+        let reason: String
+        let activities: [Activity]
+        var id: String { "\(recommendation.rawValue)|\(reason)" }
+
+        var title: String {
+            activities.count == Activity.allCases.count
+                ? "All activities"
+                : ListFormatter.localizedString(byJoining: activities.map(\.displayName))
+        }
+    }
+
+    static func groups(_ recs: [ActivityRec]) -> [Group] {
+        var order: [String] = []
+        var members: [String: (Rec, String, [Activity])] = [:]
+        for rec in recs.sorted(by: { $0.recommendation < $1.recommendation }) {
+            let key = "\(rec.recommendation.rawValue)|\(rec.reason)"
+            if members[key] == nil { order.append(key); members[key] = (rec.recommendation, rec.reason, []) }
+            members[key]?.2.append(rec.activity)
+        }
+        return order.compactMap { members[$0] }.map { Group(recommendation: $0.0, reason: $0.1, activities: $0.2) }
     }
 
     public var body: some View {
+        let groups = Self.groups(guidance.activities)
+
         VStack(alignment: .leading, spacing: 0) {
             Text("Activities")
-                .font(.headline)
+                .font(DS.Typeface.cardTitle)
                 .foregroundStyle(.white)
                 .padding(.horizontal, DS.spacingLG)
                 .padding(.top, DS.cardHeaderTop)
                 .padding(.bottom, DS.spacingXS)
                 .accessibilityAddTraits(.isHeader)
 
-            ForEach(guidance.activities) { rec in
-                activityRow(rec)
+            ForEach(groups) { group in
+                groupRow(group)
 
-                if rec.id != guidance.activities.last?.id {
+                if group.id != groups.last?.id {
                     DS.divider
                         .padding(.horizontal, DS.spacingLG)
                 }
@@ -38,59 +68,30 @@ public struct ActivityGuidanceCard: View {
             footer
         }
         .background { DS.cardBackground }
-        .overlay {
-            // The band colour runs along the card's leading edge and fades out.
-            RoundedRectangle(cornerRadius: DS.cornerRadius)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [accent.opacity(0.75), accent.opacity(0)],
-                        startPoint: .leading,
-                        endPoint: UnitPoint(x: 0.35, y: 0.5)
-                    ),
-                    lineWidth: 1.5
-                )
-                .animation(DS.Motion.atmospheric, value: accent)
-                .allowsHitTesting(false)
-        }
         .sheet(isPresented: $showingAbout) {
             AdviceInfoSheet(scale: scale)
         }
     }
 
-    private func activityRow(_ rec: ActivityRec) -> some View {
-        HStack(spacing: DS.spacingMD) {
-            Image(systemName: rec.activity.icon)
-                .font(.body)
-                .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                .frame(width: DS.iconMD)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: DS.spacingXS) {
-                HStack(spacing: DS.spacingXS + 2) {
-                    Text(rec.activity.displayName)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white)
-
-                    Text(rec.recommendation.label)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(recColor(rec.recommendation))
-                        .padding(.horizontal, DS.spacingXS + 2)
-                        .padding(.vertical, 2)
-                        .background(recColor(rec.recommendation).opacity(0.15), in: Capsule())
-                }
-
-                Text(rec.reason)
-                    .font(.caption)
+    private func groupRow(_ group: Group) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: DS.spacingMD) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(group.title)
+                    .font(DS.Typeface.rowTitle)
+                    .foregroundStyle(.white)
+                Text(group.reason)
+                    .font(DS.Typeface.caption)
                     .foregroundStyle(.white.opacity(DS.opacitySecondary))
-
-                if let window = rec.bestWindow {
-                    Text(window)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                }
             }
 
-            Spacer()
+            Spacer(minLength: DS.spacingSM)
+
+            HStack(spacing: 6) {
+                DS.colorDot(shownScale.color(for: group.recommendation.level))
+                Text(group.recommendation.label)
+                    .font(DS.Typeface.captionStrong)
+                    .foregroundStyle(.white)
+            }
         }
         .padding(.horizontal, DS.spacingLG)
         .padding(.vertical, DS.spacingSM)
@@ -98,12 +99,21 @@ public struct ActivityGuidanceCard: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: DS.spacingSM) {
+        // The best window is the place's, so it's the same for every activity.
+        let bestWindow = guidance.activities.compactMap(\.bestWindow).first
+
+        return VStack(alignment: .leading, spacing: DS.spacingSM) {
             DS.divider
 
+            if let bestWindow {
+                Label(bestWindow, systemImage: "clock")
+                    .font(DS.Typeface.caption)
+                    .foregroundStyle(.white.opacity(DS.opacityPrimary))
+            }
+
             if let outlook = guidance.peakWarning {
-                Label(outlook, systemImage: "clock")
-                    .font(.caption.weight(.medium))
+                Label(outlook, systemImage: "chart.xyaxis.line")
+                    .font(DS.Typeface.caption)
                     .foregroundStyle(.white.opacity(DS.opacityPrimary))
             }
 
@@ -115,7 +125,7 @@ public struct ActivityGuidanceCard: View {
                     Text("About this advice")
                         .underline()
                 }
-                .font(.caption2)
+                .font(DS.Typeface.fine)
                 .foregroundStyle(.white.opacity(DS.opacityTertiary))
             }
             .buttonStyle(.plain)
@@ -124,14 +134,5 @@ public struct ActivityGuidanceCard: View {
         .padding(.horizontal, DS.spacingLG)
         .padding(.bottom, DS.spacingMD)
         .padding(.top, DS.spacingXS)
-    }
-
-    private func recColor(_ rec: Rec) -> Color {
-        switch rec {
-        case .great: .green
-        case .ok: .blue
-        case .caution: .orange
-        case .avoid: .red
-        }
     }
 }

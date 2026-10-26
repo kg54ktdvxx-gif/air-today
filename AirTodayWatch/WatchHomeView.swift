@@ -112,7 +112,7 @@ struct WatchHomeView: View {
                             .font(.caption2.weight(.semibold))
                             .lineLimit(2)
                     }
-                    Text(SourceDescription.text(for: quality, distance: nil, scale: scale))
+                    Text(SourceDescription.text(for: quality, scale: scale))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     // Credits the licences ask for wherever the data is shown.

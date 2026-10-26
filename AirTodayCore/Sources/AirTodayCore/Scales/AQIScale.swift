@@ -159,6 +159,18 @@ public enum AQIScale: String, CaseIterable, Sendable {
         }
     }
 
+    /// The scale's colour for a level on the severity ladder — for things graded on the
+    /// ladder rather than by a value, like activity advice — so the whole app uses the
+    /// one set of colours the scale's bands do. Each level takes the band it's placed on
+    /// (see `Severity`); a mid-band colour where the band's top is too dark on a card.
+    public func color(for level: AQILevel) -> Color {
+        switch self {
+        case .usEPA: level.color
+        case .euEAQI: EAQIBands.colors[[0, 2, 3, 4, 5, 5][level.rawValue]]
+        case .ukDAQI: DAQIBands.colors[[1, 4, 6, 9, 9, 9][level.rawValue]]
+        }
+    }
+
     /// Every band with its range, best first, for explaining the scale.
     public var bands: [(range: String, band: ScaleBand)] {
         let ranges: [(String, Int)] = switch self {

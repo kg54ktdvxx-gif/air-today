@@ -2,7 +2,7 @@ import SwiftUI
 import AirTodayCore
 
 /// Hero section: the place, then the verdict as primary readout and the number secondary,
-/// then where the reading came from.
+/// then one quiet line for the band and one for where the reading came from.
 public struct VerdictHero: View {
     let quality: AirQuality?
     let state: LoadingState
@@ -10,9 +10,6 @@ public struct VerdictHero: View {
     /// The page's place: the town (or "My Location") or the saved city's name.
     let placeName: String
     let isCurrentLocation: Bool
-    /// Metres from the device to the reporting station; nil for saved cities
-    /// (their coordinate is the station itself) or without a location fix.
-    let distanceFromUser: Double?
     let onRetry: () async -> Void
 
     @AppStorage(AQIScale.storageKey, store: .shared)
@@ -25,6 +22,8 @@ public struct VerdictHero: View {
     @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
     @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
     @State private var showingScale = false
+    /// The big number follows the reader's text size, within reason.
+    @ScaledMetric(relativeTo: .largeTitle) private var numberSize: CGFloat = 96
 
     private var healthProfile: HealthProfile {
         HealthProfile(
@@ -44,7 +43,6 @@ public struct VerdictHero: View {
         hasScrolled: Bool,
         placeName: String,
         isCurrentLocation: Bool,
-        distanceFromUser: Double? = nil,
         onRetry: @escaping () async -> Void
     ) {
         self.quality = quality
@@ -52,7 +50,6 @@ public struct VerdictHero: View {
         self.hasScrolled = hasScrolled
         self.placeName = placeName
         self.isCurrentLocation = isCurrentLocation
-        self.distanceFromUser = distanceFromUser
         self.onRetry = onRetry
     }
 
@@ -98,29 +95,28 @@ public struct VerdictHero: View {
             HStack(spacing: 6) {
                 if isCurrentLocation {
                     Image(systemName: "location.fill")
-                        .font(.system(.footnote, weight: .semibold))
+                        .font(.footnote.weight(.semibold))
                         .accessibilityLabel("Your location:")
                 }
                 Text(placeName)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
-            .font(.system(.title, design: .rounded, weight: .semibold))
+            .font(.title2.weight(.semibold))
             .foregroundStyle(.white)
-            .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
 
             if !isCurrentLocation, let offset = quality?.timeZoneOffset {
                 TimelineView(.everyMinute) { _ in
                     Text(SunCalculator.localTime(timeZoneOffset: offset))
-                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .font(.subheadline)
                         .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                        .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
                         .accessibilityLabel("Local time \(SunCalculator.localTime(timeZoneOffset: offset))")
                 }
             }
         }
+        .skyTextShadow()
     }
 
     // MARK: - Loaded
@@ -132,103 +128,61 @@ public struct VerdictHero: View {
 
         Spacer()
 
-        // === ZONE 1: Air Quality (vertically centered) ===
-        VStack(spacing: 0) {
+        VStack(spacing: 6) {
             Text(guidance.verdict)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .font(.title.weight(.bold))
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
                 .minimumScaleFactor(0.7)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, DS.spacingLG)
-                .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
-                .shadow(color: .black.opacity(0.2), radius: 12, y: 6)
 
             Button {
                 showingScale = true
             } label: {
                 Text("\(reading.value)")
-                    .font(.system(size: 96, weight: .thin, design: .rounded))
+                    .font(.system(size: min(numberSize, 150), weight: .thin, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText(value: Double(reading.value)))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
-                    .shadow(color: .black.opacity(0.3), radius: 16, y: 8)
                     .animation(DS.Motion.standard, value: reading.value)
-                    .background { halo(reading.band.color) }
             }
             .buttonStyle(.plain)
-            .padding(.top, 4)
             .accessibilityLabel("\(shownScale.accessibilityName): \(reading.value), \(reading.band.longName). Lower is better.")
             .accessibilityHint("Explains the scale")
 
             // Without the standard and direction, "82" means nothing to newcomers.
             if launchCount <= Self.captionLaunches {
                 Text(shownScale.caption)
-                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(.white.opacity(0.65))
-                    .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
-                    .padding(.top, -6)
+                    .padding(.top, -8)
                     .accessibilityHidden(true)
             }
 
-            HStack(spacing: 8) {
-                Text(reading.band.name)
-                if let dominant = reading.dominantPollutant {
-                    Text("·")
-                    Text(dominant.displayName)
-                }
-            }
-            .font(.system(.title3, design: .rounded, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.9))
-            .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
-            .padding(.top, 4)
-            .accessibilityElement(children: .combine)
+            Text(reading.dominantPollutant.map { "\(reading.band.name) · \($0.displayName)" } ?? reading.band.name)
+                .font(.headline)
+                .foregroundStyle(.white.opacity(0.9))
+
+            Text(SourceDescription.text(for: quality, scale: scale))
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.65))
+                .multilineTextAlignment(.center)
         }
+        .foregroundStyle(.white)
+        .skyTextShadow()
         .sheet(isPresented: $showingScale) {
             ScaleExplainerSheet(scale: shownScale, reading: reading)
         }
 
         Spacer()
 
-        // === ZONE 2: Source + scroll hint (bottom) ===
-        VStack(spacing: 6) {
-            Text(SourceDescription.text(for: quality, distance: distanceFromUser, scale: scale))
-                .font(.system(.footnote, design: .rounded))
-                .foregroundStyle(.white.opacity(0.7))
-                .multilineTextAlignment(.center)
-                .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
-
-            Image(systemName: "chevron.compact.down")
-                .font(.title2)
-                .foregroundStyle(.white.opacity(0.4))
-                .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
-                .symbolEffect(.pulse, isActive: !hasScrolled && !reduceMotion && !reduceVisualEffects)
-                .opacity(hasScrolled ? 0 : 1)
-                .animation(DS.Motion.quick, value: hasScrolled)
-                .padding(.top, 4)
-                .accessibilityHidden(true)
-        }
-        .padding(.bottom, 40)
-    }
-
-    /// A soft glow of the level colour behind the number, so the eye lands on the
-    /// verdict and feels the colour at the same moment.
-    private func halo(_ color: Color) -> some View {
-        Circle()
-            .fill(
-                RadialGradient(
-                    colors: [color.opacity(0.5), color.opacity(0.15), color.opacity(0)],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: 130
-                )
-            )
-            .frame(width: 260, height: 260)
-            .blur(radius: 16)
-            .animation(DS.Motion.atmospheric, value: color)
-            .allowsHitTesting(false)
+        Image(systemName: "chevron.compact.down")
+            .font(.title2)
+            .foregroundStyle(.white.opacity(0.4))
+            .symbolEffect(.pulse, isActive: !hasScrolled && !reduceMotion && !reduceVisualEffects)
+            .opacity(hasScrolled ? 0 : 1)
+            .animation(DS.Motion.quick, value: hasScrolled)
+            .padding(.bottom, 40)
             .accessibilityHidden(true)
     }
 

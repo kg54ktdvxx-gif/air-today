@@ -190,33 +190,23 @@ struct OpenMeteoParsingTests {
 struct SourceDescriptionTests {
     private let now = Fixture.date(hour: 12)
 
-    @Test("A station says where, how far and how long ago")
+    @Test("A station says which one and how long ago")
     func station() {
         let quality = Fixture.station(aqi: 18, at: now.addingTimeInterval(-40 * 60), name: "Battersea, Wandsworth, London")
-        let text = SourceDescription.text(for: quality, distance: 3_240, now: now)
-        #expect(text.hasPrefix("Measured at Battersea · "))
-        #expect(text.hasSuffix(" · 40 min ago"))
-        #expect(SourceDescription.text(for: quality, distance: nil, now: now) == "Measured at Battersea · 40 min ago")
-    }
-
-    @Test("Distances keep only the precision they have")
-    func distances() {
-        #expect(SourceDescription.distanceText(40) == "under 100 m away")
-        #expect(!SourceDescription.distanceText(18_400).contains("."))
-        #expect(!SourceDescription.distanceText(4_129_800).contains("."))
+        #expect(SourceDescription.text(for: quality, now: now) == "Battersea station · 40 min ago")
     }
 
     @Test("The European and UK indices are estimates even beside a station")
     func otherScales() {
         let model = Fixture.model(current: now) { Fixture.sample($0, us: 30, eu: 20) }
         let quality = Fixture.station(aqi: 18, at: now, model: model)
-        #expect(SourceDescription.text(for: quality, distance: nil, scale: .euEAQI, now: now).hasPrefix("Estimated for this area"))
-        #expect(SourceDescription.text(for: quality, distance: nil, scale: .usEPA, now: now).hasPrefix("Measured at"))
+        #expect(SourceDescription.text(for: quality, scale: .euEAQI, now: now).hasPrefix("Area estimate"))
+        #expect(SourceDescription.text(for: quality, scale: .usEPA, now: now).hasPrefix("Test station"))
     }
 
     @Test("An estimate says when it was fetched")
     func model() {
         let model = Fixture.model(current: now.addingTimeInterval(-10 * 60)) { Fixture.sample($0, us: 30) }
-        #expect(SourceDescription.text(for: Fixture.modelled(model), distance: 2_000, now: now) == "Estimated for this area · updated 10 min ago")
+        #expect(SourceDescription.text(for: Fixture.modelled(model), now: now) == "Area estimate · 10 min ago")
     }
 }
