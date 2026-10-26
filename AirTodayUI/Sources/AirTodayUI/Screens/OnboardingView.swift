@@ -56,9 +56,9 @@ public struct OnboardingView: View {
 
             VStack(spacing: 0) {
                 TabView(selection: $currentStep) {
-                    welcomePage.tag(Step.welcome)
-                    youPage.tag(Step.you)
-                    setupPage.tag(Step.setup)
+                    fitOrScroll { welcomePage }.tag(Step.welcome)
+                    fitOrScroll { youPage }.tag(Step.you)
+                    fitOrScroll { setupPage }.tag(Step.setup)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
 
@@ -128,6 +128,7 @@ public struct OnboardingView: View {
         .foregroundStyle(.white)
         .multilineTextAlignment(.center)
         .skyTextShadow()
+        .frame(maxWidth: DS.readableWidth)
         .padding(DS.spacingXXL)
         .task { await hazeOverOnce() }
     }
@@ -186,6 +187,7 @@ public struct OnboardingView: View {
             nextButton("Continue") { advance(to: .setup) }
         }
         .skyTextShadow()
+        .frame(maxWidth: DS.readableWidth)
         .padding(.horizontal, DS.spacingXL)
         .padding(.vertical, DS.spacingXXL)
     }
@@ -236,6 +238,7 @@ public struct OnboardingView: View {
             }
         }
         .skyTextShadow()
+        .frame(maxWidth: DS.readableWidth)
         .padding(.horizontal, DS.spacingXL)
         .padding(.vertical, DS.spacingXXL)
     }
@@ -256,6 +259,20 @@ public struct OnboardingView: View {
         } else {
             thresholdAlerts = false
             Task { await AlertCoordinator.preferencesChanged() }
+        }
+    }
+
+    /// A step at its own height, scrolling only when large text makes it taller than
+    /// the screen — so its buttons can always be reached.
+    private func fitOrScroll(@ViewBuilder _ page: () -> some View) -> some View {
+        let page = page()
+        return GeometryReader { geo in
+            ScrollView(.vertical) {
+                page
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollIndicators(.hidden)
         }
     }
 
@@ -280,7 +297,9 @@ public struct OnboardingView: View {
                 .padding(.horizontal, isSelected ? 10 : 6)
                 .padding(.vertical, 5)
                 .background(isSelected ? .white.opacity(0.15) : .clear, in: Capsule())
-                .contentShape(Capsule())
+                // Small dots, full-size tap targets.
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
                 .onTapGesture { advance(to: step) }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(step.label), step \(step.rawValue + 1) of \(Step.allCases.count)")

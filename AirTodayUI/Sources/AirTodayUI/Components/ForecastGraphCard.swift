@@ -245,6 +245,9 @@ public struct ForecastGraphCard: View {
         .frame(height: 180)
         .padding(.horizontal, DS.spacingLG)
         .padding(.bottom, DS.spacingLG)
+        // A chart's labels have fixed room; past this size they'd overlap. The values
+        // are all in the accessibility summary, and in the pills and later days.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Hourly forecast, today and tomorrow")
         .accessibilityValue(Self.summary(points, scale: scale, calendar: calendar))
@@ -307,8 +310,7 @@ public struct ForecastGraphCard: View {
                         Text(band.name)
                             .font(DS.Typeface.fine)
                             .foregroundStyle(.white.opacity(DS.opacityTertiary))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .ignore)
@@ -318,6 +320,8 @@ public struct ForecastGraphCard: View {
             }
             .padding(.vertical, DS.spacingMD)
             .padding(.horizontal, DS.spacingSM)
+            // Three columns share the card's width; past this, band names break mid-word.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
 
             Text("Later days show each day's worst hour.")
                 .font(DS.Typeface.fine)

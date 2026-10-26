@@ -15,9 +15,9 @@ public struct AttributionView: View {
     }
 
     public var body: some View {
-        VStack(spacing: DS.spacingXS) {
+        VStack(spacing: 0) {
             Text("Data provided by")
-                .font(.caption2)
+                .font(DS.Typeface.fine)
                 .foregroundStyle(.white.opacity(DS.opacityTertiary))
 
             ForEach(attributions) { attribution in
@@ -30,7 +30,7 @@ public struct AttributionView: View {
             if showsModelData {
                 credit("Air quality and weather data by Open-Meteo.com (CC BY 4.0)", url: URL(string: "https://open-meteo.com"))
                 Text("Contains modified Copernicus Atmosphere Monitoring Service information \(Self.year)")
-                    .font(.caption2)
+                    .font(DS.Typeface.fine)
                     .foregroundStyle(.white.opacity(DS.opacityTertiary))
                     .multilineTextAlignment(.center)
             }
@@ -40,10 +40,15 @@ public struct AttributionView: View {
     @ViewBuilder
     private func credit(_ name: String, url: URL?) -> some View {
         if let url {
-            Link(name, destination: url)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                .multilineTextAlignment(.center)
+            Link(destination: url) {
+                Text(name)
+                    .font(DS.Typeface.fine)
+                    .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                    .multilineTextAlignment(.center)
+                    // Small print, but a full-size tap target.
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
         }
     }
 

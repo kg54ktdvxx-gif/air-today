@@ -84,6 +84,9 @@ public struct VerdictHero: View {
             }
         }
         .padding(.horizontal, 40)
+        // The hero has exactly one screen of height; past this size its lines would
+        // be cut off. The cards below carry on growing.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
     // MARK: - Place
@@ -99,8 +102,7 @@ public struct VerdictHero: View {
                         .accessibilityLabel("Your location:")
                 }
                 Text(placeName)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .multilineTextAlignment(.center)
             }
             .font(.title2.weight(.semibold))
             .foregroundStyle(.white)

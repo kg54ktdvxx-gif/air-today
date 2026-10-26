@@ -78,20 +78,17 @@ air quality,AQI,pollution,PM2.5,health,outdoor,forecast,smog,breathing,asthma,oz
 ## What's New (4000 char max)
 
 ```
-Air Today 1.2 is about trust: numbers that are current, advice that matches the number, and alerts that find you.
+Air Today 1.3 is calmer and quicker to read.
 
-• Always current. When the nearest station hasn't reported in the last two hours, you see a live estimate for your area instead — and the screen says which it is, how far away and how fresh.
-• A real hourly forecast for today and tomorrow, then the days after. The best time to go out now comes from that forecast.
-• The European and UK indices are now calculated properly, and the verdict, activity advice and alerts follow the scale you choose.
-• Every page shows its place name; other cities show their local time.
-• Get warned when air gets worse — one tap to turn on.
-• "About this advice" explains where the guidance and data come from.
-• A simpler main screen and Settings. The Live Activity is gone: Lock Screen widgets do its job and stay current.
-• The Apple Watch app sits this version out while it's updated for the new data; it will return in a future update.
-• Readings show their real age, stations that have stopped reporting are skipped, and saved cities stay on the station you picked.
+• A cleaner main screen: one button, the place named once, and a short line saying where the reading comes from and how fresh it is.
+• Three cards instead of six. Activities says it once when everything agrees. The forecast shows each pollutant's value and marks just now and the day's peak. Details puts the weather on two lines, with nearby stations a tap away.
+• One set of colours: activity advice now uses your chosen scale's own colours.
+• Text follows your text size setting, up to the largest accessibility sizes.
+• A shorter welcome: three steps, with location and alerts on one page.
+• The Apple Watch app is still being updated and will return in a future update.
 ```
 
-(1118 characters) — DRAFT for 1.2.0, not yet in App Store Connect.
+(720 characters) — for 1.3.0.
 
 ## Promotional Text (170 char max)
 

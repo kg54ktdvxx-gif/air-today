@@ -7,9 +7,9 @@ public enum DS {
     /// Primary text/icons on atmosphere background
     public static let opacityPrimary = 0.9
     /// Secondary text (labels, descriptions)
-    public static let opacitySecondary = 0.7
+    public static let opacitySecondary = 0.8
     /// Tertiary text (hints, captions)
-    public static let opacityTertiary = 0.5
+    public static let opacityTertiary = 0.65
     /// Quaternary text (timestamps, minor details)
     public static let opacityQuaternary = 0.4
     /// Faintest elements (scroll hints, inactive dots)
@@ -27,6 +27,10 @@ public enum DS {
     public static let spacingXXL: CGFloat = 32
     /// Below the last card, so the attribution clears the home indicator.
     public static let spacingPageEnd: CGFloat = 40
+
+    /// The widest cards, tiles and banners get, so on iPad they stay a comfortable
+    /// reading width instead of stretching edge to edge.
+    public static let readableWidth: CGFloat = 600
 
     // MARK: - Corner Radius
 
@@ -96,7 +100,7 @@ public enum DS {
     public static func glass(in shape: some Shape) -> some View {
         shape
             .fill(.ultraThinMaterial)
-            .overlay { shape.fill(.black.opacity(0.32)) }
+            .overlay { shape.fill(.black.opacity(0.4)) }
     }
 
     /// The glass lifted: a chosen tile, or a primary button straight on the sky.

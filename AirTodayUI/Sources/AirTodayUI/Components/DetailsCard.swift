@@ -9,21 +9,22 @@ struct DetailsCard: View {
     let temperatureUnit: TemperatureUnit
     let scale: AQIScale
     @State private var showingMap = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// Temperature, humidity and wind.
-    private var weatherLine: String? {
+    private var weatherItems: [String] {
         let weather = quality.weather
         let parts = [
             weather.temperature.map { temperatureUnit.format(celsius: $0) },
             weather.humidity.map { "Humidity \(Int($0))%" },
             weather.windSpeed.map { String(format: "Wind %.1f m/s", $0) },
         ].compactMap(\.self)
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        return parts
     }
 
     /// Sunset, and today's highest UV from the forecast — useful all day, unlike the
     /// current UV, which is 0 every evening.
-    private var sunLine: String? {
+    private var sunItems: [String] {
         let sunset = quality.coordinate.flatMap { coordinate in
             quality.timeZoneOffset.flatMap { offset in
                 SunCalculator.sunset(latitude: coordinate.latitude, longitude: coordinate.longitude, timeZoneOffset: offset)
@@ -34,11 +35,18 @@ struct DetailsCard: View {
             let index = Int(peak.rounded())
             return "UV peak \(index) (\(Self.uvRisk(index)))"
         }
-        let parts = [sunset, uv].compactMap(\.self)
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        return [sunset, uv].compactMap(\.self)
     }
 
-    var isEmpty: Bool { weatherLine == nil && sunLine == nil && stations.isEmpty }
+    /// Two lines of " · "-separated items, or one item a line at accessibility sizes.
+    /// Each item's own spaces don't break, so "Wind 2.6 m/s" never splits.
+    private var lines: [String] {
+        let items = [weatherItems, sunItems].map { $0.map { $0.replacingOccurrences(of: " ", with: "\u{00A0}") } }
+        if typeSize.isAccessibilitySize { return items.flatMap(\.self) }
+        return items.filter { !$0.isEmpty }.map { $0.joined(separator: " · ") }
+    }
+
+    var isEmpty: Bool { weatherItems.isEmpty && sunItems.isEmpty && stations.isEmpty }
 
     private var mapCenter: CLLocationCoordinate2D {
         let coordinate = quality.coordinate ?? stations.first?.coordinate
@@ -55,10 +63,9 @@ struct DetailsCard: View {
                 .padding(.bottom, DS.cardHeaderBottom)
                 .accessibilityAddTraits(.isHeader)
 
-            if weatherLine != nil || sunLine != nil {
+            if !lines.isEmpty {
                 VStack(alignment: .leading, spacing: DS.spacingXS) {
-                    if let weatherLine { Text(weatherLine) }
-                    if let sunLine { Text(sunLine) }
+                    ForEach(lines, id: \.self) { Text($0) }
                 }
                 .font(DS.Typeface.body)
                 .foregroundStyle(.white.opacity(DS.opacityPrimary))

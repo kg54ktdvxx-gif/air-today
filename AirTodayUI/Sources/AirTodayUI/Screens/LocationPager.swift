@@ -80,6 +80,7 @@ public struct LocationPager: View {
                         AlertsOfferCard {
                             withAnimation(DS.Motion.standard) { alertsOffered = true }
                         }
+                        .frame(maxWidth: DS.readableWidth)
                         .padding(.horizontal, DS.spacingLG)
                         .padding(.bottom, DS.spacingXL)
                     }
@@ -90,6 +91,7 @@ public struct LocationPager: View {
                 if locationService.isDenied {
                     VStack {
                         locationPermissionBanner
+                            .frame(maxWidth: DS.readableWidth)
                             .transition(.move(edge: .top).combined(with: .opacity))
                         Spacer()
                     }

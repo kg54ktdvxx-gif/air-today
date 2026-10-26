@@ -54,8 +54,8 @@ targets:
         # HTTPS only: exempt from export compliance, so App Store Connect needn't ask per build.
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity
-        MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: 10
+        MARKETING_VERSION: "1.3.0"
+        CURRENT_PROJECT_VERSION: 11
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         METAL_LIBRARY_OUTPUT_DIR: "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)"
 
@@ -81,8 +81,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity.widget
-        MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: 10
+        MARKETING_VERSION: "1.3.0"
+        CURRENT_PROJECT_VERSION: 11
         GENERATE_INFOPLIST_FILE: true
     entitlements:
       path: AirTodayWidget/AirTodayWidget.entitlements
@@ -111,8 +111,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity.watchkitapp
-        MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: 10
+        MARKETING_VERSION: "1.3.0"
+        CURRENT_PROJECT_VERSION: 11
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_CFBundleDisplayName: Air Today
         INFOPLIST_KEY_WKApplication: true
@@ -147,8 +147,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity.watchkitapp.widget
-        MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: 10
+        MARKETING_VERSION: "1.3.0"
+        CURRENT_PROJECT_VERSION: 11
         GENERATE_INFOPLIST_FILE: true
 
   AirTodayUITests:

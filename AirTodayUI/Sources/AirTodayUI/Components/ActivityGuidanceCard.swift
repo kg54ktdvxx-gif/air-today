@@ -12,6 +12,7 @@ public struct ActivityGuidanceCard: View {
     /// whose colours the recommendations take.
     let shownScale: AQIScale
     @State private var showingAbout = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(guidance: ActivityGuidance, scale: AQIScale, shownScale: AQIScale) {
         self.guidance = guidance
@@ -74,7 +75,11 @@ public struct ActivityGuidanceCard: View {
     }
 
     private func groupRow(_ group: Group) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: DS.spacingMD) {
+        // Side by side, or stacked when the text is too large to share a line.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: DS.spacingXS))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: DS.spacingMD))
+        return layout {
             VStack(alignment: .leading, spacing: 2) {
                 Text(group.title)
                     .font(DS.Typeface.rowTitle)
@@ -84,7 +89,9 @@ public struct ActivityGuidanceCard: View {
                     .foregroundStyle(.white.opacity(DS.opacitySecondary))
             }
 
-            Spacer(minLength: DS.spacingSM)
+            if !typeSize.isAccessibilitySize {
+                Spacer(minLength: DS.spacingSM)
+            }
 
             HStack(spacing: 6) {
                 DS.colorDot(shownScale.color(for: group.recommendation.level))
@@ -120,11 +127,10 @@ public struct ActivityGuidanceCard: View {
             Button {
                 showingAbout = true
             } label: {
-                HStack(spacing: DS.spacingXS) {
-                    Text("General guidance, not medical advice.")
-                    Text("About this advice")
-                        .underline()
-                }
+                Text("General guidance, not medical advice. \(Text("About this advice").underline())")
+                    .multilineTextAlignment(.leading)
+                    .frame(minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
                 .font(DS.Typeface.fine)
                 .foregroundStyle(.white.opacity(DS.opacityTertiary))
             }

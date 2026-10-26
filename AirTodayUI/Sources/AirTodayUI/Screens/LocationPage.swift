@@ -171,8 +171,10 @@ public struct LocationPage: View {
                 .padding(.top, DS.spacingSM)
                 .padding(.bottom, DS.spacingPageEnd)
         }
+        .frame(maxWidth: DS.readableWidth)
         .padding(.horizontal, DS.spacingLG)
         .padding(.top, DS.spacingXL)
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Nearby Stations
