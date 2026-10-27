@@ -194,6 +194,9 @@ public struct VerdictHero: View {
                 .font(.footnote)
                 .foregroundStyle(.white.opacity(0.65))
                 .multilineTextAlignment(.center)
+                // Station names run long ("Wandsworth - Battersea station"); wrap rather
+                // than truncate when the hero is short of height at large text sizes.
+                .fixedSize(horizontal: false, vertical: true)
                 .riseIn(readingShown || !motionEnabled)
                 .animation(DS.Motion.entrance(delay: 0.28), value: readingShown)
         }
