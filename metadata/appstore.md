@@ -78,17 +78,17 @@ air quality,AQI,pollution,PM2.5,health,outdoor,forecast,smog,breathing,asthma,oz
 ## What's New (4000 char max)
 
 ```
-Air Today 1.3 is calmer and quicker to read.
+Air Today 1.4 is calmer and more polished.
 
-• A cleaner main screen: one button, the place named once, and a short line saying where the reading comes from and how fresh it is.
-• Three cards instead of six. Activities says it once when everything agrees. The forecast shows each pollutant's value and marks just now and the day's peak. Details puts the weather on two lines, with nearby stations a tap away.
-• One set of colours: activity advice now uses your chosen scale's own colours.
-• Text follows your text size setting, up to the largest accessibility sizes.
-• A shorter welcome: three steps, with location and alerts on one page.
-• The Apple Watch app is still being updated and will return in a future update.
+• Content eases into place: the reading rises in when it arrives, and each card appears as you scroll to it.
+• While a reading loads, you see its layout instead of a spinner.
+• The forecast chart is easier to read, with band names beside it and no more overlapping labels.
+• When something goes wrong, the message says what happened and what to do, such as when you're offline.
+• Spacing, type and shadows are more consistent throughout, and taps give gentle feedback.
+• Reduce Motion, and Air Today's own Reduce Visual Effects setting, keep everything still.
 ```
 
-(720 characters) — for 1.3.0.
+(603 characters) — for 1.4.0.
 
 ## Promotional Text (170 char max)
 
