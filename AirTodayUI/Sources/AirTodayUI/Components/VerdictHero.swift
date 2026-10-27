@@ -60,8 +60,6 @@ public struct VerdictHero: View {
     public var body: some View {
         VStack(spacing: 0) {
             placeHeader
-                // Clears the status bar and the top bar.
-                .padding(.top, DS.heroTopInset)
 
             if let quality {
                 loadedContent(quality)
@@ -92,7 +90,7 @@ public struct VerdictHero: View {
                 Spacer()
             }
         }
-        .padding(.horizontal, DS.spacingXXXL)
+        .padding(.horizontal, DS.spacingXL)
         // The hero has exactly one screen of height; past this size its lines would
         // be cut off. The cards below carry on growing.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
@@ -178,6 +176,9 @@ public struct VerdictHero: View {
                 Text(shownScale.caption)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.white.opacity(0.65))
+                    .multilineTextAlignment(.center)
+                    // Wraps rather than truncating "Lower is better" at large text sizes.
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, -DS.spacingSM)
                     .riseIn(readingShown || !motionEnabled)
                     .animation(DS.Motion.entrance(delay: 0.16), value: readingShown)

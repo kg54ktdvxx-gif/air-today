@@ -48,25 +48,11 @@ public struct LocationPager: View {
                     emptyStateView
                 } else {
                     PagerBackdrop(locationManager: locationManager, scrollState: scrollState)
+                    PagerScrim(locations: locationManager.locations, scrollState: scrollState)
                     pagerContent
                 }
 
-                // Top bar: city dots (and menu) + settings
                 VStack(spacing: 0) {
-                    HStack {
-                        pageIndicator
-                        Spacer()
-                        NavigationLink(value: AppRoute.settings) {
-                            topBarIcon("gearshape")
-                        }
-                        .accessibilityLabel("Settings")
-                    }
-                    .padding(.horizontal, DS.spacingLG)
-                    .padding(.vertical, DS.spacingSM)
-                    .background {
-                        TopBarBlur(selectedID: locationManager.selectedLocationID, scrollState: scrollState)
-                    }
-
                     PagerRefreshIndicator(locationManager: locationManager, scrollState: scrollState)
                         // Below the page's place name.
                         .padding(.top, DS.spacingHuge)
@@ -95,8 +81,13 @@ public struct LocationPager: View {
                             .transition(.move(edge: .top).combined(with: .opacity))
                         Spacer()
                     }
-                    .padding(.top, DS.spacingHuge)
+                    .padding(.top, DS.spacingSM)
                 }
+            }
+            // The bar is a safe-area inset, so pages start below it and scroll beneath it,
+            // whatever the status bar's height or edge (iPhone Duo puts it down the side).
+            .safeAreaInset(edge: .top, spacing: 0) {
+                topBar
             }
             .navigationDestination(for: AppRoute.self) { route in
                 switch route {
@@ -157,11 +148,35 @@ public struct LocationPager: View {
         .scrollTargetBehavior(.paging)
         .scrollPosition(id: $locationManager.selectedLocationID)
         .scrollIndicators(.hidden)
-        .ignoresSafeArea()
+        // A scroll view draws into the safe area, so beside a vertical status bar
+        // (iPhone Duo) the next page would show under it. Clip at the sides only:
+        // pages still scroll beneath the top bar and run to the bottom edge.
+        .mask {
+            Rectangle().ignoresSafeArea(edges: .vertical)
+        }
         .onScrollGeometryChange(for: CGFloat.self) { geo in
-            geo.contentOffset.x / max(geo.containerSize.width, 1)
+            // Pages are as wide as the bounds (inside the insets), not the whole scroll view,
+            // which also spans the space under a side status bar.
+            (geo.contentOffset.x + geo.contentInsets.leading) / max(geo.bounds.width, 1)
         } action: { _, position in
             scrollState.pagePosition = position
+        }
+    }
+
+    /// City dots (and menu) and settings.
+    private var topBar: some View {
+        HStack {
+            pageIndicator
+            Spacer()
+            NavigationLink(value: AppRoute.settings) {
+                topBarIcon("gearshape")
+            }
+            .accessibilityLabel("Settings")
+        }
+        .padding(.horizontal, DS.spacingLG)
+        .padding(.vertical, DS.spacingSM)
+        .background {
+            TopBarBlur(selectedID: locationManager.selectedLocationID, scrollState: scrollState)
         }
     }
 
@@ -393,6 +408,47 @@ private struct PagerBackdrop: View {
     }
 }
 
+/// Quiet darkening where the hero's text sits — behind the place name at the top and
+/// the verdict and number in the middle — so the text needs only a soft shadow. Fades
+/// as the visible page scrolls into its cards, blended across a swipe between pages.
+private struct PagerScrim: View {
+    let locations: [SavedLocation]
+    let scrollState: PagerScrollState
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                stops: [.init(color: .black.opacity(0.3), location: 0), .init(color: .clear, location: 0.25)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            RadialGradient(
+                colors: [.black.opacity(0.25), .clear],
+                center: .center,
+                startRadius: 0,
+                endRadius: 360
+            )
+        }
+        .opacity(opacity)
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+
+    private var opacity: Double {
+        guard !locations.isEmpty else { return 1 }
+        let position = min(max(scrollState.pagePosition, 0), CGFloat(locations.count - 1))
+        let lower = Int(position.rounded(.down))
+        let upper = min(lower + 1, locations.count - 1)
+        let progress = position - CGFloat(lower)
+        return Double(fade(locations[lower]) * (1 - progress) + fade(locations[upper]) * progress)
+    }
+
+    private func fade(_ location: SavedLocation) -> CGFloat {
+        let offset = scrollState.pageOffsets[location.id] ?? 0
+        return 1 - min(1, max(0, offset / LocationPage.heroFadeDistance))
+    }
+}
+
 /// Glass behind the top bar, appearing as the visible page scrolls into its cards.
 private struct TopBarBlur: View {
     let selectedID: UUID?
@@ -408,16 +464,19 @@ private struct TopBarBlur: View {
 }
 
 /// Shown while the visible page re-fetches data it already had (pull to refresh,
-/// relocation). The system refresh control sits under the status bar in this
-/// full-bleed layout and can't be seen, so the pager draws its own, in the AQI colour.
+/// relocation), in the AQI colour. While a page is pulled down the system's spinner
+/// shows above it; once it settles the system's is hidden behind the place name (the
+/// page doesn't stay held open for it), so this one takes over.
 private struct PagerRefreshIndicator: View {
     let locationManager: LocationManager
     let scrollState: PagerScrollState
     @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
 
     var body: some View {
-        let store = scrollState.nearestLocation(in: locationManager.locations).map { locationManager.store(for: $0) }
-        let isRefreshing = store.map { $0.state.isLoading && $0.currentAQI != nil } ?? false
+        let location = scrollState.nearestLocation(in: locationManager.locations)
+        let store = location.map { locationManager.store(for: $0) }
+        let isPulledDown = (location.flatMap { scrollState.pageOffsets[$0.id] } ?? 0) < -1
+        let isRefreshing = !isPulledDown && (store.map { $0.state.isLoading && $0.currentAQI != nil } ?? false)
 
         ZStack {
             if isRefreshing {

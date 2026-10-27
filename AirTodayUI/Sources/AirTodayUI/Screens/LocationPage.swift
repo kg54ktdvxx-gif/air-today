@@ -62,41 +62,14 @@ public struct LocationPage: View {
             }
     }
 
-    /// The atmosphere behind this content is drawn once by `LocationPager`
-    /// (`AtmosphereBackdrop`), so it can carry across swipes between pages.
+    /// The atmosphere and the hero's scrim behind this content are drawn once by
+    /// `LocationPager`, so they carry across swipes and reach under a side status bar.
     private var pageContent: some View {
-        ZStack {
-            heroScrim
-            scrollContent
-        }
+        scrollContent
     }
 
-    // MARK: - Hero Scrim
-
-    /// Quiet darkening where the hero's text sits — behind the place name at the top
-    /// and the verdict and number in the middle — so the text needs only a soft shadow.
-    private var heroScrim: some View {
-        FadesOnScroll(scroll: scroll, distance: Self.heroFadeDistance) {
-            ZStack {
-                LinearGradient(
-                    stops: [.init(color: .black.opacity(0.3), location: 0), .init(color: .clear, location: 0.25)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                RadialGradient(
-                    colors: [.black.opacity(0.25), .clear],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: 360
-                )
-            }
-        }
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
-    }
-
-    /// Scroll distance over which the hero fades out.
-    private static let heroFadeDistance: CGFloat = 150
+    /// Scroll distance over which the hero (and the pager's scrim behind it) fades out.
+    static let heroFadeDistance: CGFloat = 150
 
     // MARK: - Scroll Content
 
@@ -112,11 +85,16 @@ public struct LocationPage: View {
             }
         }
         .scrollIndicators(.hidden)
+        // The hero runs to the bottom of the screen and the last card clears the home
+        // indicator with its own padding (`spacingPageEnd`); the top and sides stay inset.
+        .ignoresSafeArea(edges: .bottom)
         .refreshable {
             await onRetry()
         }
         .onScrollGeometryChange(for: CGFloat.self) { geo in
-            geo.contentOffset.y
+            // Measured from the top of the content, not the top of the scroll view: the
+            // content starts below the top bar, which `contentOffset` counts as negative.
+            geo.contentOffset.y + geo.contentInsets.top
         } action: { _, newValue in
             scroll.offset = newValue
             onScrollOffsetChange(newValue)

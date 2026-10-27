@@ -32,11 +32,6 @@ public enum DS {
     /// Below the last card, so the attribution clears the home indicator.
     public static let spacingPageEnd: CGFloat = spacingXXXL
 
-    /// Layout, not spacing: how far the hero's place name sits below the top of the
-    /// screen, clearing the status bar and the top bar (Dynamic Island 59 + bar 44 + 8,
-    /// rounded up to the 8 pt grid).
-    public static let heroTopInset: CGFloat = 112
-
     /// The widest cards, tiles and banners get, so on iPad they stay a comfortable
     /// reading width instead of stretching edge to edge.
     public static let readableWidth: CGFloat = 600

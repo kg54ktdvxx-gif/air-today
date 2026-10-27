@@ -66,6 +66,14 @@ public final class AirQualityStore {
         guard !state.isLoading else { return false }
         state = .loading
         do {
+            #if DEBUG
+            // `-uitest-slow-network` holds every load open, to check by eye what shows while
+            // one runs (skeleton, refresh spinners). XCUITest can't: it waits for the app to
+            // go idle, which a spinning indicator holds off until the load ends.
+            if ProcessInfo.processInfo.arguments.contains("-uitest-slow-network") {
+                try? await Task.sleep(for: .seconds(3))
+            }
+            #endif
             var quality = try await read()
             if isCurrentLocation {
                 quality.placeName = knownPlaceName(near: queryCoordinate)
