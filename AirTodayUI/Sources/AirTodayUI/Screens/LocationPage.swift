@@ -20,6 +20,8 @@ public struct LocationPage: View {
     @State private var scroll = PageScrollState()
     @State private var hasScrolled = false
     @State private var nearbyStations: [MapStation] = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(DS.reduceVisualEffectsKey) private var reduceVisualEffects = false
     @AppStorage(AppConstants.temperatureUnitKey, store: .shared)
     private var temperatureUnit: TemperatureUnit = .celsius
     @AppStorage(AQIScale.storageKey, store: .shared)
@@ -156,12 +158,17 @@ public struct LocationPage: View {
         let details = DetailsCard(quality: quality, stations: nearbyStations, temperatureUnit: temperatureUnit, scale: scale)
 
         return VStack(spacing: DS.spacingXL) {
+            // Each card rises in once, the first time it scrolls into view.
+            let reveal = !reduceMotion && !reduceVisualEffects
             ActivityGuidanceCard(guidance: guidance, scale: scale, shownScale: shown.scale)
+                .revealOnScroll(reveal)
 
-            ForecastGraphCard(quality: quality, scale: shown.scale, accent: shown.reading.band.color)
+            ForecastGraphCard(quality: quality, scale: shown.scale, accent: shown.reading.band.color, drawsIn: reveal)
+                .revealOnScroll(reveal)
 
             if !details.isEmpty {
                 details
+                    .revealOnScroll(reveal)
             }
 
             DS.divider

@@ -62,14 +62,14 @@ public struct LocationPager: View {
                         .accessibilityLabel("Settings")
                     }
                     .padding(.horizontal, DS.spacingLG)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, DS.spacingSM)
                     .background {
                         TopBarBlur(selectedID: locationManager.selectedLocationID, scrollState: scrollState)
                     }
 
                     PagerRefreshIndicator(locationManager: locationManager, scrollState: scrollState)
                         // Below the page's place name.
-                        .padding(.top, 52)
+                        .padding(.top, DS.spacingHuge)
                     Spacer()
                 }
 
@@ -95,7 +95,7 @@ public struct LocationPager: View {
                             .transition(.move(edge: .top).combined(with: .opacity))
                         Spacer()
                     }
-                    .padding(.top, 50)
+                    .padding(.top, DS.spacingHuge)
                 }
             }
             .navigationDestination(for: AppRoute.self) { route in
@@ -170,7 +170,7 @@ public struct LocationPager: View {
             .font(.body.weight(.medium))
             .foregroundStyle(.white.opacity(0.9))
             .frame(width: 20, height: 20)
-            .padding(8)
+            .padding(DS.spacingSM)
             .background(.black.opacity(0.2), in: Circle())
     }
 
@@ -255,7 +255,7 @@ public struct LocationPager: View {
     }
 
     private func indicatorCapsule(locations: [SavedLocation], selectedIndex: Int?) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DS.spacingSM) {
             ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
                 marker(for: location, color: bandColor(for: location), isSelected: index == selectedIndex)
             }
@@ -264,8 +264,8 @@ public struct LocationPager: View {
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(.white.opacity(DS.opacitySecondary))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .padding(.horizontal, DS.spacingMD)
+        .padding(.vertical, DS.spacingSM)
         .background(.black.opacity(0.2), in: Capsule())
         // Full-height hit area: the visible capsule is shorter than a comfortable tap.
         .frame(minHeight: 44)
@@ -284,11 +284,11 @@ public struct LocationPager: View {
                     .font(.system(size: 56))
                     .foregroundStyle(.white.opacity(0.3))
 
-                Text("No Locations")
+                Text("No places yet")
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(.white)
 
-                Text("Add a city or enable location access\nto see air quality data")
+                Text("Add a city, or turn on location to see the air where you are.")
                     .font(DS.Typeface.body)
                     .foregroundStyle(.white.opacity(DS.opacitySecondary))
                     .multilineTextAlignment(.center)
@@ -316,7 +316,7 @@ public struct LocationPager: View {
                     .buttonStyle(.borderedProminent)
                     .tint(DS.selectedFill)
                 }
-                .padding(.top, 8)
+                .padding(.top, DS.spacingSM)
             }
         }
     }
@@ -329,11 +329,11 @@ public struct LocationPager: View {
                 .font(.title3)
                 .foregroundStyle(.white)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Location Access Disabled")
+            VStack(alignment: .leading, spacing: DS.spacingXXS) {
+                Text("Location access is off")
                     .font(DS.Typeface.rowTitle)
                     .foregroundStyle(.white)
-                Text("Enable location for accurate local air quality")
+                Text("Turn it on in Settings to see the air where you are.")
                     .font(DS.Typeface.caption)
                     .foregroundStyle(.white.opacity(DS.opacitySecondary))
             }
@@ -423,7 +423,7 @@ private struct PagerRefreshIndicator: View {
             if isRefreshing {
                 ProgressView()
                     .tint(store?.currentAQI.map { scale.displayReading(for: $0).reading.band.color } ?? .white)
-                    .padding(10)
+                    .padding(DS.spacingMD)
                     .background { DS.glass(in: Circle()) }
                     .transition(.opacity.combined(with: .scale(scale: 0.6)))
                     .accessibilityLabel("Refreshing")

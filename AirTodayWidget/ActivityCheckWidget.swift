@@ -81,7 +81,7 @@ struct ActivityCheckView: View {
     }
 
     private func small(_ rec: ActivityRec) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: rec.activity.icon)
                     .font(.title3)
@@ -146,7 +146,7 @@ struct ActivityCheckView: View {
     private func circular(_ rec: ActivityRec) -> some View {
         ZStack {
             AccessoryWidgetBackground()
-            VStack(spacing: 1) {
+            VStack(spacing: 2) {
                 Image(systemName: rec.activity.icon)
                     .font(.title3)
                 Image(systemName: rec.recommendation.icon)

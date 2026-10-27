@@ -112,7 +112,7 @@ struct AQIWidgetEntryView: View {
                 .fill(.white.opacity(0.3))
                 .frame(width: 1)
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     if let dominant = reading.dominantPollutant {
                         Label(dominant.displayName, systemImage: "aqi.medium")

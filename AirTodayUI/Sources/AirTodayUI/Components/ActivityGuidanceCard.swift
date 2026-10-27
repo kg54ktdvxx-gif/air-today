@@ -80,7 +80,7 @@ public struct ActivityGuidanceCard: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: DS.spacingXS))
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: DS.spacingMD))
         return layout {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DS.spacingXXS) {
                 Text(group.title)
                     .font(DS.Typeface.rowTitle)
                     .foregroundStyle(.white)
@@ -93,7 +93,7 @@ public struct ActivityGuidanceCard: View {
                 Spacer(minLength: DS.spacingSM)
             }
 
-            HStack(spacing: 6) {
+            HStack(spacing: DS.spacingSM) {
                 DS.colorDot(shownScale.color(for: group.recommendation.level))
                 Text(group.recommendation.label)
                     .font(DS.Typeface.captionStrong)
@@ -134,7 +134,7 @@ public struct ActivityGuidanceCard: View {
                 .font(DS.Typeface.fine)
                 .foregroundStyle(.white.opacity(DS.opacityTertiary))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .accessibilityLabel("General guidance, not medical advice. About this advice")
         }
         .padding(.horizontal, DS.spacingLG)

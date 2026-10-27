@@ -74,7 +74,7 @@ struct BestWindowView: View {
     }
 
     private func small(_ window: BestWindow) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             // Title beside the refresh button, so the detail and credit have room.
             HStack {
                 Text(title(window))
@@ -103,7 +103,7 @@ struct BestWindowView: View {
 
     private func medium(_ window: BestWindow) -> some View {
         HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title(window))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.white.opacity(0.8))
@@ -116,7 +116,7 @@ struct BestWindowView: View {
                     .lineLimit(3)
             }
             Spacer()
-            VStack(alignment: .trailing, spacing: 6) {
+            VStack(alignment: .trailing, spacing: 4) {
                 WidgetRefreshButton()
                 Spacer(minLength: 0)
                 Text(window.dayName(now: entry.date).capitalized)

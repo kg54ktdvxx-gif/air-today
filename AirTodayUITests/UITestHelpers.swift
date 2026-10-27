@@ -34,6 +34,8 @@ extension XCTestCase {
     /// Keeps a screenshot of the whole screen in the result bundle.
     @MainActor
     func snap(_ name: String) {
+        // Content rises in over about a second; let it land before the screenshot.
+        RunLoop.current.run(until: Date().addingTimeInterval(1.6))
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = name
         shot.lifetime = .keepAlways

@@ -10,14 +10,19 @@ public struct ForecastGraphCard: View {
     /// Today's band colour, threaded quietly through the chart.
     let accent: Color
     let now: Date
+    /// Whether the chart draws itself in, left to right, when it first comes into view.
+    let drawsIn: Bool
     /// Nil is the overall index.
     @State private var selectedPollutant: Pollutant.Kind?
+    /// How much of the plot is drawn, 0 to 1.
+    @State private var drawn: CGFloat = 0
 
-    public init(quality: AirQuality, scale: AQIScale, accent: Color, now: Date = Date()) {
+    public init(quality: AirQuality, scale: AQIScale, accent: Color, now: Date = Date(), drawsIn: Bool = false) {
         self.quality = quality
         self.scale = scale
         self.accent = accent
         self.now = now
+        self.drawsIn = drawsIn
     }
 
     private var model: ModelAirData? { quality.model }
@@ -142,7 +147,7 @@ public struct ForecastGraphCard: View {
         Button {
             withAnimation(DS.Motion.quick) { action() }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: DS.spacingSM) {
                 if let value {
                     DS.colorDot(scale.band(forValue: value).color, size: 6)
                 }
@@ -155,11 +160,11 @@ public struct ForecastGraphCard: View {
             .font(DS.Typeface.captionStrong)
             .foregroundStyle(.white.opacity(selected ? 1 : DS.opacitySecondary))
             .padding(.horizontal, DS.spacingMD)
-            .padding(.vertical, 6)
+            .padding(.vertical, DS.spacingSM)
             .background(Capsule().fill(selected ? DS.selectedFill : DS.chipFill))
             .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .sensoryFeedback(.selection, trigger: selected) { _, new in new }
         .accessibilityLabel(value.map { "\(accessibility), \($0), \(scale.band(forValue: $0).longName)" } ?? accessibility)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
@@ -177,13 +182,8 @@ public struct ForecastGraphCard: View {
                     yEnd: .value(scale.compactName, point.value)
                 )
                 .interpolationMethod(.monotone)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [accent.opacity(0.32), accent.opacity(0.04)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                // A flat tint: backgrounds carry no gradients; the line carries the shape.
+                .foregroundStyle(accent.opacity(0.16))
 
                 LineMark(
                     x: .value("Hour", point.time),
@@ -201,7 +201,7 @@ public struct ForecastGraphCard: View {
                 PointMark(x: .value("Hour", first.time), y: .value(scale.compactName, first.value))
                     .foregroundStyle(scale.band(forValue: first.value).color)
                     .symbolSize(40)
-                    .annotation(position: .top, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                    .annotation(position: .top, spacing: DS.spacingXS, overflowResolution: .init(x: .fit(to: .plot), y: .fit(to: .plot))) {
                         chartLabel("Now")
                     }
             }
@@ -209,24 +209,32 @@ public struct ForecastGraphCard: View {
                 PointMark(x: .value("Hour", peak.time), y: .value(scale.compactName, peak.value))
                     .foregroundStyle(scale.band(forValue: peak.value).color)
                     .symbolSize(30)
-                    .annotation(position: .top, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                    .annotation(position: .top, spacing: DS.spacingXS, overflowResolution: .init(x: .fit(to: .plot), y: .fit(to: .plot))) {
                         chartLabel("\(peak.value) at \(ActivityGuidanceService.hourText(peak.time, calendar: calendar))")
                     }
             }
 
-            // Band boundaries for the chosen scale, named at the right-hand edge.
+            // Band boundaries for the chosen scale. Their names sit outside the plot (the
+            // y-axis below), so they can't collide with the "Now" and peak labels.
             ForEach(scale.chartThresholds, id: \.label) { threshold in
                 RuleMark(y: .value(threshold.label, threshold.value))
                     .foregroundStyle(threshold.color.opacity(0.35))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
-                    .annotation(position: .top, alignment: .trailing, spacing: 2) {
-                        Text(threshold.label)
-                            .font(DS.Typeface.fine)
-                            .foregroundStyle(threshold.color.opacity(DS.opacitySecondary))
-                    }
             }
         }
         .chartYScale(domain: 0...chartYMax(points))
+        // The plot (line, fill, band lines) wipes in left to right like a progress bar.
+        .chartPlotStyle { plot in
+            plot.mask(alignment: .leading) {
+                GeometryReader { geo in
+                    Rectangle().frame(width: geo.size.width * (drawsIn ? drawn : 1))
+                }
+            }
+        }
+        .onScrollVisibilityChange(threshold: 0.3) { visible in
+            guard visible, drawn == 0 else { return }
+            withAnimation(DS.Motion.draw.delay(0.25)) { drawn = 1 }
+        }
         .chartXAxis {
             AxisMarks(values: axisDates) { value in
                 if let date = value.as(Date.self) {
@@ -238,7 +246,18 @@ public struct ForecastGraphCard: View {
                 }
             }
         }
-        .chartYAxis(.hidden)
+        // No numbers or gridlines: only the band names, beside their lines.
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: scale.chartThresholds.map(\.value)) { value in
+                AxisValueLabel {
+                    if let threshold = scale.chartThresholds.first(where: { $0.value == value.as(Double.self) }) {
+                        Text(threshold.label)
+                            .font(DS.Typeface.fine)
+                            .foregroundStyle(threshold.color.opacity(DS.opacitySecondary))
+                    }
+                }
+            }
+        }
         // Hours and day boundaries in the place's own time.
         .environment(\.calendar, calendar)
         .environment(\.timeZone, calendar.timeZone)

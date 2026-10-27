@@ -16,7 +16,7 @@ struct ScaleExplainerSheet: View {
                         Text("\(reading.value)")
                             .font(.system(size: 44, weight: .light, design: .rounded))
                             .monospacedDigit()
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: DS.spacingXXS) {
                             Text(reading.band.longName)
                                 .font(.headline)
                             if let dominant = reading.dominantPollutant {

@@ -22,6 +22,8 @@ public struct VerdictHero: View {
     @AppStorage(HealthProfile.Key.ozoneSensitive, store: .shared) private var isOzoneSensitive = false
     @AppStorage(HealthProfile.Key.children, store: .shared) private var hasChildren = false
     @State private var showingScale = false
+    /// False until the first reading has risen into place.
+    @State private var readingShown = false
     /// The big number follows the reader's text size, within reason.
     @ScaledMetric(relativeTo: .largeTitle) private var numberSize: CGFloat = 96
 
@@ -32,6 +34,8 @@ public struct VerdictHero: View {
             hasChildren: hasChildren
         )
     }
+
+    private var motionEnabled: Bool { !reduceMotion && !reduceVisualEffects }
 
     private static let guidanceService = ActivityGuidanceService()
     /// Launches during which the scale caption shows under the number.
@@ -57,33 +61,38 @@ public struct VerdictHero: View {
         VStack(spacing: 0) {
             placeHeader
                 // Clears the status bar and the top bar.
-                .padding(.top, 112)
+                .padding(.top, DS.heroTopInset)
 
             if let quality {
                 loadedContent(quality)
             } else if case .loading = state {
                 Spacer()
-                ProgressView()
-                    .tint(.white)
+                HeroSkeleton()
                 Spacer()
+                // The loaded hero's scroll hint, unseen, so the skeleton sits exactly where
+                // the reading will and nothing jumps when it arrives.
+                Image(systemName: "chevron.compact.down")
+                    .font(.title2)
+                    .padding(.bottom, DS.spacingXXXL)
+                    .hidden()
             } else if case .error(let message) = state {
                 Spacer()
                 errorContent(message)
                 Spacer()
             } else {
                 Spacer()
-                VStack(spacing: 12) {
+                VStack(spacing: DS.spacingMD) {
                     Image(systemName: "aqi.medium")
                         .font(.system(size: 40))
                         .foregroundStyle(.white.opacity(0.4))
-                    Text("Checking air quality...")
+                    Text("Checking the air…")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.5))
                 }
                 Spacer()
             }
         }
-        .padding(.horizontal, 40)
+        .padding(.horizontal, DS.spacingXXXL)
         // The hero has exactly one screen of height; past this size its lines would
         // be cut off. The cards below carry on growing.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
@@ -93,9 +102,14 @@ public struct VerdictHero: View {
 
     /// The place, large, so each page is clearly somewhere. Other cities show their
     /// local time beside it.
+    /// The current band's colour, nearly black, so the text's shadow belongs to the sky.
+    private var shadowTint: Color {
+        DS.shadowTint(quality.map { scale.displayReading(for: $0).reading.band.color })
+    }
+
     private var placeHeader: some View {
-        VStack(spacing: 2) {
-            HStack(spacing: 6) {
+        VStack(spacing: DS.spacingXXS) {
+            HStack(spacing: DS.spacingSM) {
                 if isCurrentLocation {
                     Image(systemName: "location.fill")
                         .font(.footnote.weight(.semibold))
@@ -118,7 +132,7 @@ public struct VerdictHero: View {
                 }
             }
         }
-        .skyTextShadow()
+        .skyTextShadow(tint: shadowTint)
     }
 
     // MARK: - Loaded
@@ -130,14 +144,17 @@ public struct VerdictHero: View {
 
         Spacer()
 
-        VStack(spacing: 6) {
+        VStack(spacing: DS.spacingSM) {
             Text(guidance.verdict)
                 .font(.title.weight(.bold))
+                .kerning(-0.4)
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
                 .minimumScaleFactor(0.7)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, DS.spacingLG)
+                .riseIn(readingShown || !motionEnabled)
+                .animation(DS.Motion.entrance(), value: readingShown)
 
             Button {
                 showingScale = true
@@ -145,10 +162,14 @@ public struct VerdictHero: View {
                 Text("\(reading.value)")
                     .font(.system(size: min(numberSize, 150), weight: .thin, design: .rounded))
                     .monospacedDigit()
+                    // Large numerals read tighter; scaled with the size so it holds at any Dynamic Type.
+                    .kerning(-min(numberSize, 150) * 0.03)
                     .contentTransition(.numericText(value: Double(reading.value)))
                     .animation(DS.Motion.standard, value: reading.value)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
+            .riseIn(readingShown || !motionEnabled)
+            .animation(DS.Motion.entrance(delay: 0.09), value: readingShown)
             .accessibilityLabel("\(shownScale.accessibilityName): \(reading.value), \(reading.band.longName). Lower is better.")
             .accessibilityHint("Explains the scale")
 
@@ -157,21 +178,29 @@ public struct VerdictHero: View {
                 Text(shownScale.caption)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.white.opacity(0.65))
-                    .padding(.top, -8)
+                    .padding(.top, -DS.spacingSM)
+                    .riseIn(readingShown || !motionEnabled)
+                    .animation(DS.Motion.entrance(delay: 0.16), value: readingShown)
                     .accessibilityHidden(true)
             }
 
             Text(reading.dominantPollutant.map { "\(reading.band.name) · \($0.displayName)" } ?? reading.band.name)
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.9))
+                .riseIn(readingShown || !motionEnabled)
+                .animation(DS.Motion.entrance(delay: 0.22), value: readingShown)
 
             Text(SourceDescription.text(for: quality, scale: scale))
                 .font(.footnote)
                 .foregroundStyle(.white.opacity(0.65))
                 .multilineTextAlignment(.center)
+                .riseIn(readingShown || !motionEnabled)
+                .animation(DS.Motion.entrance(delay: 0.28), value: readingShown)
         }
+        // The first reading rises in once, line by line; later readings just update.
+        .onAppear { readingShown = true }
         .foregroundStyle(.white)
-        .skyTextShadow()
+        .skyTextShadow(tint: shadowTint)
         .sheet(isPresented: $showingScale) {
             ScaleExplainerSheet(scale: shownScale, reading: reading)
         }
@@ -184,7 +213,7 @@ public struct VerdictHero: View {
             .symbolEffect(.pulse, isActive: !hasScrolled && !reduceMotion && !reduceVisualEffects)
             .opacity(hasScrolled ? 0 : 1)
             .animation(DS.Motion.quick, value: hasScrolled)
-            .padding(.bottom, 40)
+            .padding(.bottom, DS.spacingXXXL)
             .accessibilityHidden(true)
     }
 
@@ -192,7 +221,7 @@ public struct VerdictHero: View {
 
     @ViewBuilder
     private func errorContent(_ message: String) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DS.spacingMD) {
             Image(systemName: "exclamationmark.circle")
                 .font(.system(size: 40))
                 .foregroundStyle(.white.opacity(0.6))
@@ -212,5 +241,39 @@ public struct VerdictHero: View {
             .tint(.white)
         }
         .padding()
+    }
+}
+
+/// The hero's shape before the first reading: the verdict, the number and the two
+/// lines under it, as soft placeholders in the same places, so the reading resolves
+/// into a layout that's already there instead of replacing a spinner.
+private struct HeroSkeleton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .largeTitle) private var numberSize: CGFloat = 96
+
+    var body: some View {
+        // Same spacing and near-same heights as the loaded verdict, number and lines.
+        VStack(spacing: DS.spacingSM) {
+            bar(width: 220, height: 30)
+            bar(width: 128, height: min(numberSize, 150) * 0.85)
+                .padding(.vertical, DS.spacingXS)
+            bar(width: 150, height: 18)
+            bar(width: 180, height: 14)
+        }
+        // Without a trigger the phases loop for as long as the skeleton shows.
+        .phaseAnimator([false, true]) { content, lit in
+            content.opacity(reduceMotion ? 0.6 : (lit ? 0.8 : 0.45))
+        } animation: { _ in
+            // The skeleton's own slow breath; linear because it never stops.
+            .linear(duration: 1.2)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Loading the air quality")
+    }
+
+    private func bar(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: min(height / 2, DS.cornerRadiusSM))
+            .fill(.white.opacity(0.18))
+            .frame(width: width, height: height)
     }
 }

@@ -76,7 +76,7 @@ public final class AirQualityStore {
             }
             return true
         } catch {
-            state = .error(error.localizedDescription)
+            state = .error(UserFacingError.message(for: error))
             return false
         }
     }

@@ -23,13 +23,13 @@ public struct LocationSearchView: View {
                 if isSearching {
                     HStack {
                         Spacer()
-                        ProgressView("Searching...")
+                        ProgressView("Searching…")
                         Spacer()
                     }
                     .listRowBackground(Color.clear)
                 } else if let error = searchError {
                     ContentUnavailableView {
-                        Label("Search Failed", systemImage: "wifi.exclamationmark")
+                        Label("Search didn't work", systemImage: "wifi.exclamationmark")
                     } description: {
                         Text(error)
                     } actions: {
@@ -42,9 +42,9 @@ public struct LocationSearchView: View {
                     .listRowBackground(Color.clear)
                 } else if hasSearched && results.isEmpty {
                     ContentUnavailableView(
-                        "No Stations Found",
+                        "No stations found",
                         systemImage: "magnifyingglass",
-                        description: Text("Try a different city or station name")
+                        description: Text("Try another city or station name.")
                     )
                     .listRowBackground(Color.clear)
                 } else if !hasSearched && results.isEmpty {
@@ -60,7 +60,7 @@ public struct LocationSearchView: View {
                             addStation(station)
                         } label: {
                             HStack {
-                                VStack(alignment: .leading, spacing: 2) {
+                                VStack(alignment: .leading, spacing: DS.spacingXXS) {
                                     Text(station.name)
                                         .font(.subheadline)
                                         .foregroundStyle(.primary)
@@ -128,7 +128,9 @@ public struct LocationSearchView: View {
             results = try await service.search(keyword: trimmed)
             hasSearched = true
         } catch {
-            searchError = error.localizedDescription
+            searchError = error is URLError
+                ? UserFacingError.message(for: error)
+                : "Search isn't working right now. Try again in a minute."
             results = []
         }
         isSearching = false

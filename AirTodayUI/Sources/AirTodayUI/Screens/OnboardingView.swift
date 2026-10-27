@@ -279,10 +279,10 @@ public struct OnboardingView: View {
     // MARK: - Step Indicator
 
     private var stepIndicator: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: DS.spacingXS) {
             ForEach(Step.allCases, id: \.self) { step in
                 let isSelected = currentStep == step
-                HStack(spacing: 4) {
+                HStack(spacing: DS.spacingXS) {
                     Circle()
                         .fill(isSelected ? .white : .white.opacity(0.35))
                         .frame(width: 7, height: 7)
@@ -294,8 +294,8 @@ public struct OnboardingView: View {
                             .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
                     }
                 }
-                .padding(.horizontal, isSelected ? 10 : 6)
-                .padding(.vertical, 5)
+                .padding(.horizontal, isSelected ? DS.spacingMD : DS.spacingSM)
+                .padding(.vertical, DS.spacingXS)
                 .background(isSelected ? .white.opacity(0.15) : .clear, in: Capsule())
                 // Small dots, full-size tap targets.
                 .frame(minWidth: 44, minHeight: 44)
@@ -306,8 +306,8 @@ public struct OnboardingView: View {
                 .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.horizontal, DS.spacingSM)
+        .padding(.vertical, DS.spacingXS)
         .background(.black.opacity(0.25), in: Capsule())
         .animation(DS.Motion.quick, value: currentStep)
     }

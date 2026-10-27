@@ -19,14 +19,23 @@ public enum DS {
 
     // MARK: - Spacing
 
+    // The only spacing values: 0, 2, 4, 8, 12, 16, 24, 32, 40, 48. Nothing between them.
+    public static let spacingXXS: CGFloat = 2
     public static let spacingXS: CGFloat = 4
     public static let spacingSM: CGFloat = 8
     public static let spacingMD: CGFloat = 12
     public static let spacingLG: CGFloat = 16
-    public static let spacingXL: CGFloat = 20
+    public static let spacingXL: CGFloat = 24
     public static let spacingXXL: CGFloat = 32
+    public static let spacingXXXL: CGFloat = 40
+    public static let spacingHuge: CGFloat = 48
     /// Below the last card, so the attribution clears the home indicator.
-    public static let spacingPageEnd: CGFloat = 40
+    public static let spacingPageEnd: CGFloat = spacingXXXL
+
+    /// Layout, not spacing: how far the hero's place name sits below the top of the
+    /// screen, clearing the status bar and the top bar (Dynamic Island 59 + bar 44 + 8,
+    /// rounded up to the 8 pt grid).
+    public static let heroTopInset: CGFloat = 112
 
     /// The widest cards, tiles and banners get, so on iPad they stay a comfortable
     /// reading width instead of stretching edge to edge.
@@ -34,6 +43,9 @@ public enum DS {
 
     // MARK: - Corner Radius
 
+    // A shape inside another, less than 32 pt in, takes the outer radius minus the
+    // gap (only when that's over 2). Today nothing nests that closely: chips are
+    // capsules, and buttons inside cards sit 16 pt in, which leaves 0.
     public static let cornerRadius: CGFloat = 16
     public static let cornerRadiusSM: CGFloat = 12
     public static let cornerRadiusXS: CGFloat = 6
@@ -87,6 +99,12 @@ public enum DS {
         public static let standard = Animation.spring(response: 0.55, dampingFraction: 0.86)
         /// The atmosphere itself: backgrounds, colour, haze — slow, like weather.
         public static let atmospheric = Animation.easeInOut(duration: 1.4)
+        /// Content arriving: decelerates into place, slow and soft, never a default curve.
+        public static func entrance(delay: Double = 0) -> Animation {
+            .timingCurve(0.16, 1, 0.3, 1, duration: 0.9).delay(delay)
+        }
+        /// A line or bar drawing on, like progress.
+        public static let draw = Animation.timingCurve(0.65, 0, 0.35, 1, duration: 1.1)
     }
 
     // MARK: - Glass
@@ -133,11 +151,94 @@ public enum DS {
     }
 }
 
+public extension DS {
+    /// A shadow colour leaning toward the sky behind it rather than pure black: the
+    /// band's colour, nearly black. With no band yet, a deep blue night.
+    static func shadowTint(_ band: Color? = nil) -> Color {
+        (band ?? Color(.sRGB, red: 0.1, green: 0.16, blue: 0.3)).mix(with: .black, by: 0.8)
+    }
+}
+
 public extension View {
     /// The one shadow for text straight on the sky, with no glass behind it: applied
     /// once to a whole block rather than per line, enough to lift white text off a
-    /// bright photo without looking embossed.
-    func skyTextShadow() -> some View {
-        compositingGroup().shadow(color: .black.opacity(0.35), radius: 8, y: 1)
+    /// bright photo without looking embossed. Tinted toward the sky's own colour.
+    func skyTextShadow(tint: Color = DS.shadowTint()) -> some View {
+        compositingGroup().shadow(color: tint.opacity(0.45), radius: 8, y: 1)
+    }
+}
+
+// MARK: - Press
+
+/// The one press response for custom tappable surfaces (rows, tiles, pills, the
+/// number): a slight shrink and dim, so a tap feels physical. System buttons keep
+/// their own.
+public struct PressableButtonStyle: ButtonStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(DS.Motion.quick, value: configuration.isPressed)
+    }
+}
+
+public extension ButtonStyle where Self == PressableButtonStyle {
+    static var pressable: PressableButtonStyle { PressableButtonStyle() }
+}
+
+// MARK: - Entrance
+
+/// How a piece of content arrives: a short rise, from soft focus to sharp.
+public enum RiseKind {
+    /// Text, values and rows.
+    case item
+    /// A whole card, with its contents.
+    case card
+
+    var offset: CGFloat { self == .card ? DS.spacingXL : 10 }
+    var blur: CGFloat { self == .card ? 6 : 4 }
+    var scale: CGFloat { self == .card ? 0.985 : 1 }
+}
+
+private struct RiseIn: ViewModifier {
+    let shown: Bool
+    let kind: RiseKind
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .offset(y: shown ? 0 : kind.offset)
+            .scaleEffect(shown ? 1 : kind.scale)
+            .blur(radius: shown ? 0 : kind.blur)
+    }
+}
+
+/// Reveals a card the first time a fifth of it scrolls into view, then never again.
+private struct RevealOnScroll: ViewModifier {
+    let isEnabled: Bool
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(RiseIn(shown: shown || !isEnabled, kind: .card))
+            .onScrollVisibilityChange(threshold: 0.2) { visible in
+                guard visible, !shown else { return }
+                withAnimation(DS.Motion.entrance()) { shown = true }
+            }
+    }
+}
+
+public extension View {
+    /// Drawn at rest when `shown`, risen and softened when not; animate `shown`.
+    func riseIn(_ shown: Bool, _ kind: RiseKind = .item) -> some View {
+        modifier(RiseIn(shown: shown, kind: kind))
+    }
+
+    /// A card that rises in once, as it first scrolls into view. Pass false under
+    /// Reduce Motion or reduced effects, and it simply sits in place.
+    func revealOnScroll(_ isEnabled: Bool) -> some View {
+        modifier(RevealOnScroll(isEnabled: isEnabled))
     }
 }

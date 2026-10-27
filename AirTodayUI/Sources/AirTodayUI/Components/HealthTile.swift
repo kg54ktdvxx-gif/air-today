@@ -17,7 +17,7 @@ struct HealthTile: View {
                     .foregroundStyle(.white.opacity(isOn ? 1 : DS.opacitySecondary))
                     .frame(width: DS.iconLG)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DS.spacingXXS) {
                     Text(title)
                         .font(DS.Typeface.rowTitle)
                         .foregroundStyle(.white)
@@ -47,7 +47,7 @@ struct HealthTile: View {
             }
             .contentShape(RoundedRectangle(cornerRadius: DS.cornerRadius))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .sensoryFeedback(.selection, trigger: isOn)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)

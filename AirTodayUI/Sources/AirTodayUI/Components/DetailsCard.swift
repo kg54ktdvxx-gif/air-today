@@ -94,7 +94,7 @@ struct DetailsCard: View {
             HStack(spacing: DS.spacingMD) {
                 Image(systemName: "mappin.and.ellipse")
                     .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DS.spacingXXS) {
                     Text(stations.count == 1 ? "1 station nearby" : "\(stations.count) stations nearby")
                         .foregroundStyle(.white)
                     // WAQI's map only has US EPA values.
@@ -114,7 +114,7 @@ struct DetailsCard: View {
             .padding(.vertical, DS.spacingMD)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityHint("Opens the map")
     }
 

@@ -20,7 +20,7 @@ struct AlertsOfferCard: View {
                     .foregroundStyle(.white)
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DS.spacingXXS) {
                     Text("Get warned when air gets worse")
                         .font(DS.Typeface.rowTitle)
                         .foregroundStyle(.white)
