@@ -78,17 +78,16 @@ air quality,AQI,pollution,PM2.5,health,outdoor,forecast,smog,breathing,asthma,oz
 ## What's New (4000 char max)
 
 ```
-Air Today 1.4 is calmer and more polished.
+Air Today 1.4.1 makes the most of bigger screens.
 
-• Content eases into place: the reading rises in when it arrives, and each card appears as you scroll to it.
-• While a reading loads, you see its layout instead of a spinner.
-• The forecast chart is easier to read, with band names beside it and no more overlapping labels.
-• When something goes wrong, the message says what happened and what to do, such as when you're offline.
-• Spacing, type and shadows are more consistent throughout, and taps give gentle feedback.
-• Reduce Motion, and Air Today's own Reduce Visual Effects setting, keep everything still.
+• On iPhone Duo's inner display, iPad and Mac, the reading sits beside your activities, forecast and details, so you see the answer and the detail at once. On iPhone Duo, the split sits on the fold.
+• On iPad, Air Today now works in Split View, Stage Manager and landscape. On Mac, you can resize its window.
+• Fixed: on Mac, Air Today could quit when you searched for a city to add.
+• Long station names now wrap instead of being cut off at large text sizes.
+• The note explaining the AQI scale now stays for your first few launches, as intended.
 ```
 
-(603 characters) — for 1.4.0.
+(598 characters) — for 1.4.1.
 
 ## Promotional Text (170 char max)
 
