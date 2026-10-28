@@ -264,11 +264,14 @@ public struct LocationPager: View {
                 }
             }
             if locationManager.canAddLocation {
-                Divider()
-                Button {
-                    showingSearch = true
-                } label: {
-                    Label("Add City…", systemImage: "plus")
+                // A section, not a Divider: in a toolbar's menu (iPhone Duo's vertical bar) an
+                // item after a Divider never ran its action (checked on the simulator).
+                Section {
+                    Button {
+                        showingSearch = true
+                    } label: {
+                        Label("Add City…", systemImage: "plus")
+                    }
                 }
             }
         } label: {

@@ -169,7 +169,11 @@ private struct LocationSearchField: ViewModifier {
         } else {
             content
                 .searchable(text: $query, prompt: Self.prompt)
+                .searchFocused($isFocused)
                 .onSubmit(of: .search, onSubmit)
+                // The sheet is opened to type in. On iPhone Duo's outer display the system
+                // folds the field into a Search button in a vertical bar; focus expands it.
+                .onAppear { isFocused = true }
         }
     }
 
