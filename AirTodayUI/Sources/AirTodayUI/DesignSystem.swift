@@ -35,6 +35,10 @@ public enum DS {
     /// The widest cards, tiles and banners get, so on iPad they stay a comfortable
     /// reading width instead of stretching edge to edge.
     public static let readableWidth: CGFloat = 600
+    /// The narrowest column the cards are designed for (a 375 pt iPhone less its 16 pt
+    /// margins): the forecast's pills and later days lay out without truncating. Hero
+    /// and cards go side by side only where two of these fit.
+    public static let cardMinWidth: CGFloat = 343
 
     // MARK: - Corner Radius
 

@@ -13,6 +13,8 @@ final class PageScrollState {
 public struct LocationPage: View {
     let store: AirQualityStore
     let location: SavedLocation
+    /// Column or panes, chosen by the pager for the space every page has.
+    let layout: PlaceLayout
     /// Reports the vertical scroll offset every frame (for the pager's parallax and top bar).
     let onScrollOffsetChange: (CGFloat) -> Void
     let onRetry: () async -> Void
@@ -40,14 +42,17 @@ public struct LocationPage: View {
 
     private static let guidanceService = ActivityGuidanceService()
 
-    public init(
+    // Internal: only the pager builds pages, and it hands them the layout it chose.
+    init(
         store: AirQualityStore,
         location: SavedLocation,
+        layout: PlaceLayout = .fullHeightColumn,
         onScrollOffsetChange: @escaping (CGFloat) -> Void = { _ in },
         onRetry: @escaping () async -> Void
     ) {
         self.store = store
         self.location = location
+        self.layout = layout
         self.onScrollOffsetChange = onScrollOffsetChange
         self.onRetry = onRetry
     }
@@ -64,59 +69,90 @@ public struct LocationPage: View {
 
     /// The atmosphere and the hero's scrim behind this content are drawn once by
     /// `LocationPager`, so they carry across swipes and reach under a side status bar.
+    @ViewBuilder
     private var pageContent: some View {
-        scrollContent
+        switch layout {
+        case .column(let heroHeight, let foldGap):
+            scrolling(ScrollView(.vertical) {
+                VStack(spacing: 0) {
+                    if let heroHeight {
+                        // Above a horizontal fold, with the cards starting below it.
+                        heroSection
+                            .frame(height: heroHeight)
+                        Color.clear.frame(height: foldGap)
+                    } else {
+                        heroSection
+                            .containerRelativeFrame(.vertical)
+                    }
+
+                    if let quality = store.currentAQI {
+                        detailCards(quality: quality)
+                    }
+                }
+            })
+        case .panes(let heroWidth, let gap):
+            // The answer stays in view beside the detail; only the cards scroll.
+            HStack(spacing: 0) {
+                hero(showsScrollHint: false)
+                    .frame(width: heroWidth)
+                Color.clear.frame(width: gap)
+                scrolling(ScrollView(.vertical) {
+                    if let quality = store.currentAQI {
+                        detailCards(quality: quality)
+                    }
+                })
+            }
+        }
     }
 
     /// Scroll distance over which the hero (and the pager's scrim behind it) fades out.
     static let heroFadeDistance: CGFloat = 150
 
-    // MARK: - Scroll Content
+    // MARK: - Scrolling
 
-    private var scrollContent: some View {
-        ScrollView(.vertical) {
-            VStack(spacing: 0) {
-                heroSection
-                    .containerRelativeFrame(.vertical)
-
-                if let quality = store.currentAQI {
-                    detailCards(quality: quality)
-                }
+    /// What every page's scroll view shares: refresh, and reporting its offset.
+    private func scrolling(_ scrollView: some View) -> some View {
+        scrollView
+            .scrollIndicators(.hidden)
+            .accessibilityIdentifier(layout.accessibilityIdentifier)
+            // The hero runs to the bottom of the screen and the last card clears the home
+            // indicator with its own padding (`spacingPageEnd`); the top and sides stay inset.
+            .ignoresSafeArea(edges: .bottom)
+            .refreshable {
+                await onRetry()
             }
-        }
-        .scrollIndicators(.hidden)
-        // The hero runs to the bottom of the screen and the last card clears the home
-        // indicator with its own padding (`spacingPageEnd`); the top and sides stay inset.
-        .ignoresSafeArea(edges: .bottom)
-        .refreshable {
-            await onRetry()
-        }
-        .onScrollGeometryChange(for: CGFloat.self) { geo in
-            // Measured from the top of the content, not the top of the scroll view: the
-            // content starts below the top bar, which `contentOffset` counts as negative.
-            geo.contentOffset.y + geo.contentInsets.top
-        } action: { _, newValue in
-            scroll.offset = newValue
-            onScrollOffsetChange(newValue)
-            // Only write on a real change, so this doesn't invalidate the page each frame.
-            if newValue > 20, !hasScrolled { hasScrolled = true }
-            else if newValue < 5, hasScrolled { hasScrolled = false }
-        }
+            .onScrollGeometryChange(for: CGFloat.self) { geo in
+                // Measured from the top of the content, not the top of the scroll view: the
+                // content starts below the top bar, which `contentOffset` counts as negative.
+                geo.contentOffset.y + geo.contentInsets.top
+            } action: { _, newValue in
+                scroll.offset = newValue
+                onScrollOffsetChange(newValue)
+                // Only write on a real change, so this doesn't invalidate the page each frame.
+                if newValue > 20, !hasScrolled { hasScrolled = true }
+                else if newValue < 5, hasScrolled { hasScrolled = false }
+            }
     }
 
     // MARK: - Hero
 
+    /// The hero in a column, fading as the cards scroll up over it.
     private var heroSection: some View {
         FadesOnScroll(scroll: scroll, distance: Self.heroFadeDistance) {
-            VerdictHero(
-                quality: store.currentAQI,
-                state: store.state,
-                hasScrolled: hasScrolled,
-                placeName: placeName,
-                isCurrentLocation: location.isCurrentLocation,
-                onRetry: onRetry
-            )
+            hero(showsScrollHint: true)
         }
+    }
+
+    private func hero(showsScrollHint: Bool) -> some View {
+        VerdictHero(
+            quality: store.currentAQI,
+            state: store.state,
+            hasScrolled: hasScrolled,
+            showsScrollHint: showsScrollHint,
+            placeName: placeName,
+            isCurrentLocation: location.isCurrentLocation,
+            onRetry: onRetry
+        )
     }
 
     /// The town for the current location (looked up on device), else "My Location";

@@ -65,6 +65,7 @@ public struct OnboardingView: View {
                 stepIndicator
                     .padding(.bottom, DS.spacingLG)
             }
+            .modifier(BesideActiveFold())
         }
         .preferredColorScheme(.dark)
     }
@@ -115,6 +116,7 @@ public struct OnboardingView: View {
                 Text("Know when it's safe to be outside")
                     .font(.title3)
                     .foregroundStyle(.white.opacity(DS.opacityPrimary))
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer()
@@ -327,5 +329,33 @@ public struct OnboardingView: View {
                 .padding(.vertical, DS.spacingLG)
                 .background { DS.liftedGlass(in: RoundedRectangle(cornerRadius: DS.cornerRadiusSM)) }
         }
+    }
+}
+
+// MARK: - Fold
+
+/// While an iPhone Duo is bent, keeps the steps on one side of the fold: the leading half
+/// when it stands like a book, above the fold when it sits like a laptop. Flat, the fold
+/// isn't active and nothing moves; the sky behind stays full bleed either way.
+private struct BesideActiveFold: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        GeometryReader { proxy in
+            let area = Self.area(in: proxy)
+            content
+                .frame(width: area.width, height: area.height)
+                .position(x: area.midX, y: area.midY)
+                .animation(reduceMotion ? nil : DS.Motion.standard, value: area)
+        }
+    }
+
+    private static func area(in proxy: GeometryProxy) -> CGRect {
+        let bounds = CGRect(origin: .zero, size: proxy.size)
+        guard let fold = proxy.fold(includeInactive: false) else { return bounds }
+        // Region frames follow the layout direction, so the low-x side is the leading one.
+        return fold.height > fold.width
+            ? CGRect(x: 0, y: 0, width: fold.minX, height: bounds.height)
+            : CGRect(x: 0, y: 0, width: bounds.width, height: fold.minY)
     }
 }

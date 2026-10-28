@@ -1,6 +1,6 @@
 # Air Today on iPhone Duo — plan
 
-Research date: 27 October 2026. Status: **plan, awaiting approval**. Nothing implemented yet.
+Research date: 27 October 2026. Status: phases 1–3 approved with option C (27 Oct). Phase 1 committed (c18b2fa). Phase 2 built and checked on the outer display, iPhone and iPad; the inner display waits on Device Hub (section 9).
 Toolchain: Xcode 27.1 (27A9275), iOS 27.1 SDK. Deployment target iOS 18, so every Duo API below is gated with `#available(iOS 27.1, *)`.
 
 ## 1. Research log
@@ -73,7 +73,7 @@ Inner display: **not captured yet**. Folding needs Device Hub's buttons, and thi
 | Screen | Outer display (compact) | Inner, open wide (951 × 669) | Inner, partially open as a book (vertical fold) | Inner, open tall / laptop (horizontal fold) | Split View 50/50 or narrow window |
 |---|---|---|---|---|---|
 | **Place page** (hero + cards) | Single pane as today: full-height hero, scroll to cards. Fix safe areas | **Two panes**: hero on the leading side, cards scrolling on the trailing side, split at the fold's (inactive) frame | Same two panes, already split at the fold, so **nothing moves** when it folds | Single column. The hero fills the space above the fold, and cards start below it (laptop: sky up, detail on the table) | Single pane (compact) |
-| **City menu + settings** | Top bar today, overlapping nothing once safe areas are fixed | Option C: a rail on the system's vertical-bar edge, below the status bar | Same | Top (no vertical bars on the inner display in portrait) | As compact |
+| **City menu + settings** | Option C: a rail below the status column (the outer display's system bars are vertical too, so `toolbarVerticalEdge` is set) | Option C: a rail on the system's vertical-bar edge, below the status bar | Same | Top (no vertical bars on the inner display in portrait) | As compact |
 | **Settings** (List, pushed) | System navigation bar, which goes vertical by itself | Readable-width list. No split: it's a short list, and a second level adds nothing | Same | Same | Same |
 | **Map** (full-screen cover) | Full bleed; Done button inside the safe area | Same | The map is continuous content, so no displacement | Same | Same |
 | **Sheets** (search, scale, advice) | System sheets adjust themselves | Same | Same | Same | Same |
@@ -154,3 +154,71 @@ Quality gate: an internal score of 85 or more (out of 100) after rendering, with
    - (C, recommended) Keep the same controls, but when `toolbarVerticalEdge` is set, show them as a rail on that edge below the status bar, as Apple's docs suggest for custom bars. Unchanged everywhere else.
    - (B, not recommended) Move them into the system toolbar. That changes the look on every iPhone, and the coloured dots can't render vertically as a system item.
 2. Approval of phases 1–3 as written.
+
+## 9. Phase 2 progress (27 Oct, evening)
+
+Built (uncommitted on `iphone-duo` until the inner display is checked):
+
+- `PlaceLayout` (rules 1–4) chosen once by the pager for every page; `.within(_:of:)` keeps the scrim, refresh spinner and banners on their own pane.
+- The rail: when `toolbarVerticalEdge` is set, the city menu and Settings are items in the system's vertical bar. The bar keeps a button's label but drops its value, so there the menu's label carries the place showing ("Cities, Paris, 2 of 4").
+- Onboarding: the steps keep to the leading half of an active vertical fold, or above an active horizontal fold (`BesideActiveFold`).
+- UI tests: the cards' scroll view is identified `place.column` or `place.panes`; `testPlaceLayoutFollowsTheRoomOnThePage` checks the mode against the window width and, in panes, that Activities is in view. `scroll(toCard:)` drags where the cards scroll and measures from the bottom of the top bar.
+- **Decision (user, 27 Oct): two panes wherever they fit**, so the iPad (1032 pt) and the Mac (810 pt) get them as well as the inner display. The iPad and Mac App Store screenshots need redoing in phase 3.
+
+Checked:
+
+- Duo outer (simulator, folded): PagerUITests 4/4 (city menu in the rail, swipes, one column), OnboardingUITests 2/2, AccessibilityUITests 4/4 after the welcome tagline was given its full height (it failed the "text clipped" audit on phase 1 as well).
+- iPad 13" and iPhone 18 Pro: see the commit.
+
+Device Hub, first pass (27 Oct, 21:00, user clicking; Xcode 27.1 simulator, iOS 27.1):
+
+- **With `UIRequiresFullScreen` set, the inner display shows Air Today letterboxed**: a portrait window the outer display's size (about 466 × 669 pt) centred between black bars, one column, top bar. Section 1's "iOS 27 ignores it" doesn't hold here. With the key off (a command-line override for testing only, `INFOPLIST_KEY_UIRequiresFullScreen=NO`), the app fills 951 × 669: two panes, rail below the status column. So the inner-display layout needs that key removed, which is the developer's decision (it also makes the iPad app and the Mac window resizable).
+- **The app is never told where the fold is.** `reservedRegions(kind: .division / .occlusion, options: .includeInactive)` returned an empty list at launch flat, at launch partially open (book), and the layout never re-ran on Open → Partially Open. So `PlaceLayout` splits the 867 pt page (951 less the 84 pt rail and status column) evenly: hero 421.5, gap 24, cards from 445.7 pt. The fold is at the display's centre (about 466–485 pt), so the card pane's left edge sits on the crease. No Xcode 27.1/27.2 release note mentions this; unknown whether a real device reports regions.
+- Once, the half left of the fold showed blurred in the framebuffer with the hero invisible (but present in the accessibility tree); after reopening, not again.
+- Screenshots of the inner display: `simctl io <udid> screenshot --display=A8B27778-5273-4BD5-96B9-3E71940B30CF` (the default display is the outer one, black while open).
+
+Still waiting on Device Hub clicks (the user): inner open wide, partially open as a book, open tall / laptop, rotation, Split View; T1–T3 and T6 from section 5. Not yet checked on the Mac window.
+
+## 10. ArrangementView restructure: spike findings and plan (27 Oct, 21:20)
+
+The user asked to restructure the place page around `ArrangementView`. A spike (a two-pane `ArrangementView(.split)` of probe views, `-debug-arrangement`, Duo inner display, `UIRequiresFullScreen` off) found:
+
+| Pose (Device Hub) | Hinge (`onHingeChange`) | `reservedRegions(.division, .includeInactive)` | `ArrangementView` split |
+|---|---|---|---|
+| Partially Open | partially open, 2.23 rad (128°) | `[]` | 0–475.5 and 475.5–951, no gap |
+| Open → Partially Open while running | (no change logged) | `[]` | unchanged |
+
+- The simulator passes the hinge to apps but never the fold region. `ArrangementView` falls back to an even split, as Apple's docs say it does "when a display has one region". Neither approach can show fold handling here; a real device is the only test.
+- `splitArrangementAxis` read `nil` inside a horizontal split, so a pane can't tell from it whether it's alone.
+- Apple's split follows orientation: side by side in landscape, stacked in portrait; where an axis is excluded, only the primary shows. Air Today is portrait-only on iPad (and the Mac window is portrait), so with `ArrangementView` the iPad and Mac can't keep the side-by-side panes the user approved: they'd stack the hero over the cards, or show one column.
+- Apple: don't put an `ArrangementView` inside a scroll view. Each place page is inside the horizontal pager, so the restructure means two pagers (heroes, cards) under one `ArrangementView`, kept in step.
+
+Restructure plan (if chosen):
+1. `LocationPager`: when two panes apply, an `ArrangementView(.split.axes(...))` whose primary is a pager of heroes and secondary a pager of cards, both driven by one `selectedLocationID` and one shared horizontal offset so a swipe on either moves both as one page (T5).
+2. One column (outer display, iPhones): today's single pager, unchanged.
+3. The primary decides hero-only vs. full column from its own width against the window, since `splitArrangementAxis` reads nil.
+4. Delete `PlaceLayout.panes`/`.within(_:of:)`; keep the column path. Scrims, refresh spinner and banners move into the panes they belong to.
+5. Tests: the layout test checks the two pagers stay on the same place through swipes on either pane; the existing pager tests run in both modes.
+6. Validation: Device Hub poses again, iPad/Mac decision on stacked vs. single column.
+
+## 11. Decision and result: centre split (27–28 Oct)
+
+The user chose to keep `PlaceLayout` and add a fallback instead of the `ArrangementView` restructure.
+
+- **Fallback:** when no fold is reported, two panes divide at the middle of the scene, not the middle of the page. `PlaceLayout.sceneMiddle` takes it from the pager's size plus its leading and trailing safe-area insets. On iPhone Duo the system's vertical bar (rail plus status column, 84 pt) sits outside even the app's root view, so a SwiftUI view can't measure past it. The pager reports it as a trailing inset (867 + 84 = 951). If either pane would be narrower than a card, it falls back to the page's middle. When a fold is reported (presumably on device), the fold frame still wins.
+- **Duo inner, 951 × 669:** hero 0–463.5, gap 463.5–487.5 centred on the fold, cards from 487.5. Screenshot: `phase2/duo_inner_two_panes.jpg`.
+- **Test fixes found on the inner display:** XCUITest reports `app.frame` as the display's native portrait (669 × 951) while the window is landscape. Drags placed with `app.coordinate` miss, so the pager tests now place drags on the window. In two panes they swipe across the hero pane, because the forecast chart scrubs on horizontal drags and a drag of half the pane is under half a page.
+- **Duo inner (built with `UIRequiresFullScreen` off for testing):** PagerUITests 4/4, OnboardingUITests 2/2, AccessibilityUITests 4/4.
+- In two panes the pager tests swipe across the top of the page (place name, then Activities). Kept to the hero pane, a swipe was under half a page on the iPad (491 of 1032 pt) and missed once.
+- **Final runs, 28 Oct:**
+  - Clean build (project settings, temp code removed), iPhone 18 Pro: 10/10.
+  - Clean build, iPad 13": Onboarding 2/2, Accessibility 4/4, Pager 4/4 (after the swipe change).
+  - Duo inner (full-screen key off): Pager 4/4, Onboarding 2/2, Accessibility 4/4.
+  - Duo outer: last run 27 Oct (before the centre split and the window-placed swipes, neither of which changes a one-column page).
+
+**Decision (user, 28 Oct): the best customer experience, so resizable.** `UIRequiresFullScreen` is removed. The iPad declares all four orientations (Apple's prerequisite for a resizable iPad app); the iPhone stays portrait. The user judged the layouts checked enough, so there was no manual Split View or Stage Manager pass: the iPad UI tests ran on the resizable build, plus one landscape screenshot.
+
+Still open:
+- Laptop pose (tall inner display), rotation and Split View in Device Hub.
+- A real device, to see whether it reports the fold.
+- The Mac window.

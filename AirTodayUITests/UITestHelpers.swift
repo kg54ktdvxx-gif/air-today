@@ -13,26 +13,39 @@ extension XCUIApplication {
     func scroll(toCard title: String) -> Bool {
         let window = windows.firstMatch
         let height = window.frame.height
+        // Under the top bar, a header is hidden by it. Where there's no bar across the top
+        // (iPhone Duo puts the controls in a side bar), only the status bar is up there.
+        let picker = buttons["cityPicker"]
+        let barBottom = picker.exists && picker.frame.midX < window.frame.midX ? picker.frame.maxY : height * 0.05
         // Positions after recent drags: the page has stopped only when the last three agree.
         var recent: [CGFloat] = []
-        var hasMoved = false
         for _ in 0..<30 {
             // The pager keeps neighbouring cities' pages loaded; use the one on screen.
             let header = staticTexts.matching(NSPredicate(format: "label == %@", title)).allElementsBoundByIndex
                 .first { $0.frame.minX >= 0 && $0.frame.minX < window.frame.width }
-            if let header, header.frame.minY > height * 0.12, header.frame.minY < height * 0.3 { return true }
+            if let header, header.frame.minY > barBottom, header.frame.minY < height * 0.3 { return true }
             if let header {
-                if let last = recent.last, last != header.frame.minY { hasMoved = true }
                 recent = Array((recent + [header.frame.minY]).suffix(3))
-                // Only once the page has scrolled at all: a first drag can land before the page responds.
-                if hasMoved, header.frame.minY > height * 0.12, header.frame.minY < height * 0.85,
+                // On screen and still through three drags: the page can't take it any higher
+                // (the last card, or cards that all fit beside the hero).
+                if header.frame.minY > barBottom, header.frame.minY < height * 0.85,
                    recent.count == 3, Set(recent).count == 1 { return true }
             }
-            let start = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-            let end = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+            // Drag where the cards scroll: beside the hero, when the two share the page.
+            let x = cardsScrollView.map { $0.frame.midX / window.frame.width } ?? 0.5
+            let start = window.coordinate(withNormalizedOffset: CGVector(dx: x, dy: 0.7))
+            let end = window.coordinate(withNormalizedOffset: CGVector(dx: x, dy: 0.55))
             start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
         }
         return false
+    }
+
+    /// The scroll view holding the cards of the page on screen. Its identifier names the
+    /// layout: "place.column" (hero above the cards) or "place.panes" (side by side).
+    var cardsScrollView: XCUIElement? {
+        let window = windows.firstMatch
+        return scrollViews.matching(NSPredicate(format: "identifier BEGINSWITH 'place.'")).allElementsBoundByIndex
+            .first { $0.frame.maxX > 0 && $0.frame.minX < window.frame.width }
     }
 }
 

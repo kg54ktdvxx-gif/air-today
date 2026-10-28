@@ -7,6 +7,8 @@ public struct VerdictHero: View {
     let quality: AirQuality?
     let state: LoadingState
     let hasScrolled: Bool
+    /// The pulsing hint that the cards are below; off when they're beside the hero.
+    let showsScrollHint: Bool
     /// The page's place: the town (or "My Location") or the saved city's name.
     let placeName: String
     let isCurrentLocation: Bool
@@ -45,6 +47,7 @@ public struct VerdictHero: View {
         quality: AirQuality?,
         state: LoadingState,
         hasScrolled: Bool,
+        showsScrollHint: Bool = true,
         placeName: String,
         isCurrentLocation: Bool,
         onRetry: @escaping () async -> Void
@@ -52,6 +55,7 @@ public struct VerdictHero: View {
         self.quality = quality
         self.state = state
         self.hasScrolled = hasScrolled
+        self.showsScrollHint = showsScrollHint
         self.placeName = placeName
         self.isCurrentLocation = isCurrentLocation
         self.onRetry = onRetry
@@ -211,8 +215,10 @@ public struct VerdictHero: View {
         Image(systemName: "chevron.compact.down")
             .font(.title2)
             .foregroundStyle(.white.opacity(0.4))
-            .symbolEffect(.pulse, isActive: !hasScrolled && !reduceMotion && !reduceVisualEffects)
-            .opacity(hasScrolled ? 0 : 1)
+            .symbolEffect(.pulse, isActive: showsScrollHint && !hasScrolled && !reduceMotion && !reduceVisualEffects)
+            // Beside the cards there's nothing below to scroll to; it still holds its space,
+            // so the reading sits where it does in a single column.
+            .opacity(showsScrollHint && !hasScrolled ? 1 : 0)
             .animation(DS.Motion.quick, value: hasScrolled)
             .padding(.bottom, DS.spacingXXXL)
             .accessibilityHidden(true)

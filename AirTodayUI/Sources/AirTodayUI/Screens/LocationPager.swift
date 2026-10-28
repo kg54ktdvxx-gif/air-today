@@ -35,6 +35,7 @@ public struct LocationPager: View {
     @AppStorage(NotificationPreferences.Key.alertsOffered, store: .shared) private var alertsOffered = false
     @AppStorage(NotificationPreferences.Key.thresholdAlerts, store: .shared) private var thresholdAlerts = false
     @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     public init(locationManager: LocationManager, locationService: LocationService) {
         self.locationManager = locationManager
@@ -45,50 +46,62 @@ public struct LocationPager: View {
         NavigationStack {
             ZStack {
                 if locationManager.locations.isEmpty {
-                    emptyStateView
+                    Color.black.ignoresSafeArea()
                 } else {
                     PagerBackdrop(locationManager: locationManager, scrollState: scrollState)
-                    PagerScrim(locations: locationManager.locations, scrollState: scrollState)
-                    pagerContent
                 }
 
-                VStack(spacing: 0) {
-                    PagerRefreshIndicator(locationManager: locationManager, scrollState: scrollState)
-                        // Below the page's place name.
-                        .padding(.top, DS.spacingHuge)
-                    Spacer()
-                }
-
-                // Once, for people updating from 1.1 (new installs see it in onboarding).
-                if !alertsOffered, !thresholdAlerts, !locationManager.locations.isEmpty {
-                    VStack {
-                        Spacer()
-                        AlertsOfferCard {
-                            withAnimation(DS.Motion.standard) { alertsOffered = true }
+                // One layout for every page, from the space they share (and the fold, if any).
+                GeometryReader { proxy in
+                    let layout = PlaceLayout.resolve(in: proxy, sizeClass: horizontalSizeClass)
+                    ZStack {
+                        if locationManager.locations.isEmpty {
+                            emptyStateView
+                                .within(.hero, of: layout)
+                        } else {
+                            PagerScrim(locations: locationManager.locations, scrollState: scrollState, layout: layout, size: proxy.size)
+                            pagerContent(layout)
                         }
-                        .frame(maxWidth: DS.readableWidth)
-                        .padding(.horizontal, DS.spacingLG)
-                        .padding(.bottom, DS.spacingXL)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
 
-                // Location permission banner
-                if locationService.isDenied {
-                    VStack {
-                        locationPermissionBanner
-                            .frame(maxWidth: DS.readableWidth)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                        Spacer()
+                        VStack(spacing: 0) {
+                            PagerRefreshIndicator(locationManager: locationManager, scrollState: scrollState)
+                                // Below the page's place name.
+                                .padding(.top, DS.spacingHuge)
+                            Spacer()
+                        }
+                        .within(.hero, of: layout)
+
+                        // Once, for people updating from 1.1 (new installs see it in onboarding).
+                        if !alertsOffered, !thresholdAlerts, !locationManager.locations.isEmpty {
+                            VStack {
+                                Spacer()
+                                AlertsOfferCard {
+                                    withAnimation(DS.Motion.standard) { alertsOffered = true }
+                                }
+                                .frame(maxWidth: DS.readableWidth)
+                                .padding(.horizontal, DS.spacingLG)
+                                .padding(.bottom, DS.spacingXL)
+                            }
+                            .within(.cards, of: layout)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+
+                        // Location permission banner
+                        if locationService.isDenied {
+                            VStack {
+                                locationPermissionBanner
+                                    .frame(maxWidth: DS.readableWidth)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                Spacer()
+                            }
+                            .padding(.top, DS.spacingSM)
+                            .within(.cards, of: layout)
+                        }
                     }
-                    .padding(.top, DS.spacingSM)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                 }
             }
-            // The bar is a safe-area inset, so pages start below it and scroll beneath it,
-            // whatever the status bar's height or edge (iPhone Duo puts it down the side).
-            .safeAreaInset(edge: .top, spacing: 0) {
-                topBar
-            }
+            .modifier(PagerBars(topBar: topBar, cityMenu: cityMenu(inVerticalBar: true)))
             .navigationDestination(for: AppRoute.self) { route in
                 switch route {
                 case .settings:
@@ -97,7 +110,6 @@ public struct LocationPager: View {
                     PrivacyPolicyView()
                 }
             }
-            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingSearch) {
                 LocationSearchView(locationManager: locationManager)
             }
@@ -125,7 +137,7 @@ public struct LocationPager: View {
 
     // MARK: - Pager
 
-    private var pagerContent: some View {
+    private func pagerContent(_ layout: PlaceLayout) -> some View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 0) {
                 ForEach(locationManager.locations) { location in
@@ -133,6 +145,7 @@ public struct LocationPager: View {
                     LocationPage(
                         store: store,
                         location: location,
+                        layout: layout,
                         onScrollOffsetChange: { scrollState.pageOffsets[location.id] = $0 }
                     ) {
                         await locationManager.refresh(location: location)
@@ -163,10 +176,10 @@ public struct LocationPager: View {
         }
     }
 
-    /// City dots (and menu) and settings.
+    /// City dots (and menu) and settings, across the top.
     private var topBar: some View {
         HStack {
-            pageIndicator
+            cityMenu(inVerticalBar: false)
             Spacer()
             NavigationLink(value: AppRoute.settings) {
                 topBarIcon("gearshape")
@@ -219,10 +232,14 @@ public struct LocationPager: View {
     /// A marker per city (arrow for your location, dots in each city's AQI colour).
     /// Tapping it lists every city by name with its reading — colour alone can't tell
     /// two Good cities apart — and is where cities are added.
-    private var pageIndicator: some View {
+    ///
+    /// In a vertical bar (iPhone Duo) the label is one symbol, as Apple advises for those
+    /// bars: the showing place's (the bar draws it in its own colour).
+    private func cityMenu(inVerticalBar: Bool) -> some View {
         let locations = locationManager.locations
         let selectedIndex = locations.firstIndex { $0.id == locationManager.selectedLocationID }
         let selectedName = selectedIndex.map { shortName(locations[$0]) } ?? ""
+        let spokenValue = selectedIndex.map { "\(selectedName), \($0 + 1) of \(locations.count)" } ?? ""
 
         return Menu {
             ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
@@ -248,12 +265,19 @@ public struct LocationPager: View {
                 }
             }
         } label: {
-            indicatorCapsule(locations: locations, selectedIndex: selectedIndex)
+            if inVerticalBar {
+                let isCurrentLocation = selectedIndex.map { locations[$0].isCurrentLocation } ?? false
+                Label("Cities", systemImage: isCurrentLocation ? "location.fill" : "mappin.and.ellipse")
+            } else {
+                indicatorCapsule(locations: locations, selectedIndex: selectedIndex)
+            }
         }
         .menuOrder(.fixed)
         .accessibilityIdentifier("cityPicker")
-        .accessibilityLabel("Cities")
-        .accessibilityValue(selectedIndex.map { "\(selectedName), \($0 + 1) of \(locations.count)" } ?? "")
+        // A bar builds its own button from the menu and keeps its label but not its value
+        // (checked on the Duo simulator), so there the place showing goes in the label.
+        .accessibilityLabel(inVerticalBar && !spokenValue.isEmpty ? "Cities, \(spokenValue)" : "Cities")
+        .accessibilityValue(spokenValue)
         .accessibilityHint("Shows all your cities")
     }
 
@@ -291,48 +315,44 @@ public struct LocationPager: View {
     // MARK: - Empty State
 
     private var emptyStateView: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        VStack(spacing: DS.spacingXL) {
+            Image(systemName: "aqi.medium")
+                .font(.system(size: 56))
+                .foregroundStyle(.white.opacity(0.3))
 
-            VStack(spacing: DS.spacingXL) {
-                Image(systemName: "aqi.medium")
-                    .font(.system(size: 56))
-                    .foregroundStyle(.white.opacity(0.3))
+            Text("No places yet")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
 
-                Text("No places yet")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
+            Text("Add a city, or turn on location to see the air where you are.")
+                .font(DS.Typeface.body)
+                .foregroundStyle(.white.opacity(DS.opacitySecondary))
+                .multilineTextAlignment(.center)
 
-                Text("Add a city, or turn on location to see the air where you are.")
-                    .font(DS.Typeface.body)
-                    .foregroundStyle(.white.opacity(DS.opacitySecondary))
-                    .multilineTextAlignment(.center)
-
-                VStack(spacing: DS.spacingMD) {
-                    if locationService.isDenied {
-                        Button {
-                            if let url = URL(string: UIApplication.openSettingsURLString) {
-                                UIApplication.shared.open(url)
-                            }
-                        } label: {
-                            Label("Enable Location", systemImage: "location")
-                                .frame(maxWidth: 220)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.white)
-                    }
-
+            VStack(spacing: DS.spacingMD) {
+                if locationService.isDenied {
                     Button {
-                        showingSearch = true
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
                     } label: {
-                        Label("Add a City", systemImage: "plus")
+                        Label("Enable Location", systemImage: "location")
                             .frame(maxWidth: 220)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(DS.selectedFill)
+                    .buttonStyle(.bordered)
+                    .tint(.white)
                 }
-                .padding(.top, DS.spacingSM)
+
+                Button {
+                    showingSearch = true
+                } label: {
+                    Label("Add a City", systemImage: "plus")
+                        .frame(maxWidth: 220)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(DS.selectedFill)
             }
+            .padding(.top, DS.spacingSM)
         }
     }
 
@@ -367,6 +387,58 @@ public struct LocationPager: View {
         .padding(DS.spacingMD)
         .background { DS.glass(in: RoundedRectangle(cornerRadius: DS.cornerRadiusSM)) }
         .padding(.horizontal, DS.spacingLG)
+    }
+}
+
+// MARK: - Bars
+
+/// The city menu and settings: a bar across the top, or on iPhone Duo, where the system
+/// puts its bars down the side, items in that vertical bar below the status bar. Apple's
+/// guidance for custom bars is to follow `toolbarVerticalEdge`.
+private struct PagerBars<TopBar: View, CityMenu: View>: ViewModifier {
+    let topBar: TopBar
+    /// The city menu laid out for a vertical bar.
+    let cityMenu: CityMenu
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.modifier(VerticalAwareBars(topBar: topBar, cityMenu: cityMenu))
+        } else {
+            content
+                .safeAreaInset(edge: .top, spacing: 0) { topBar }
+                .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+}
+
+@available(iOS 27.1, *)
+private struct VerticalAwareBars<TopBar: View, CityMenu: View>: ViewModifier {
+    @Environment(\.toolbarVerticalEdge) private var verticalEdge
+    let topBar: TopBar
+    let cityMenu: CityMenu
+
+    func body(content: Content) -> some View {
+        // One structure for both, so a change of edge (rotating the inner display)
+        // re-places the controls without rebuilding the pages under them.
+        let isVertical = verticalEdge != nil
+        content
+            // The bar is a safe-area inset, so pages start below it and scroll beneath it.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !isVertical { topBar }
+            }
+            .toolbar {
+                if isVertical {
+                    // Navigation at the top of the bar, then the action.
+                    ToolbarItem(placement: .topBarLeading) { cityMenu }
+                        .axisBehavior(.verticalPreferred)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink(value: AppRoute.settings) {
+                            Label("Settings", systemImage: "gearshape")
+                        }
+                    }
+                }
+            }
+            .toolbar(isVertical ? .automatic : .hidden, for: .navigationBar)
     }
 }
 
@@ -414,6 +486,11 @@ private struct PagerBackdrop: View {
 private struct PagerScrim: View {
     let locations: [SavedLocation]
     let scrollState: PagerScrollState
+    let layout: PlaceLayout
+    /// The space the pages fill, inside the safe area.
+    let size: CGSize
+
+    private static let radius: CGFloat = 360
 
     var body: some View {
         ZStack {
@@ -422,16 +499,30 @@ private struct PagerScrim: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            RadialGradient(
-                colors: [.black.opacity(0.25), .clear],
-                center: .center,
-                startRadius: 0,
-                endRadius: 360
-            )
+            .ignoresSafeArea()
+
+            switch layout {
+            case .column:
+                radial
+                    .ignoresSafeArea()
+            case .panes(let heroWidth, _):
+                // Behind the hero pane, not the middle of the screen (which is the fold).
+                radial
+                    .frame(width: Self.radius * 2, height: Self.radius * 2)
+                    .position(x: heroWidth / 2, y: size.height / 2)
+            }
         }
-        .opacity(opacity)
-        .ignoresSafeArea()
+        // Beside the cards the hero never scrolls away, so neither does its scrim.
+        .opacity(isColumn ? opacity : 1)
         .allowsHitTesting(false)
+    }
+
+    private var radial: some View {
+        RadialGradient(colors: [.black.opacity(0.25), .clear], center: .center, startRadius: 0, endRadius: Self.radius)
+    }
+
+    private var isColumn: Bool {
+        if case .column = layout { true } else { false }
     }
 
     private var opacity: Double {
