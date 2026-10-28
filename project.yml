@@ -53,12 +53,11 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_FILE: AirTodayApp/Info.plist
-        INFOPLIST_KEY_UIBackgroundModes: "fetch"
         # HTTPS only: exempt from export compliance, so App Store Connect needn't ask per build.
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity
         MARKETING_VERSION: "1.4.1"
-        CURRENT_PROJECT_VERSION: 13
+        CURRENT_PROJECT_VERSION: 14
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         METAL_LIBRARY_OUTPUT_DIR: "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)"
 
@@ -85,7 +84,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity.widget
         MARKETING_VERSION: "1.4.1"
-        CURRENT_PROJECT_VERSION: 13
+        CURRENT_PROJECT_VERSION: 14
         GENERATE_INFOPLIST_FILE: true
     entitlements:
       path: AirTodayWidget/AirTodayWidget.entitlements
@@ -115,7 +114,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity.watchkitapp
         MARKETING_VERSION: "1.4.1"
-        CURRENT_PROJECT_VERSION: 13
+        CURRENT_PROJECT_VERSION: 14
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_CFBundleDisplayName: Air Today
         INFOPLIST_KEY_WKApplication: true
@@ -151,7 +150,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airtoday.app.liveactivity.watchkitapp.widget
         MARKETING_VERSION: "1.4.1"
-        CURRENT_PROJECT_VERSION: 13
+        CURRENT_PROJECT_VERSION: 14
         GENERATE_INFOPLIST_FILE: true
 
   AirTodayUITests:
