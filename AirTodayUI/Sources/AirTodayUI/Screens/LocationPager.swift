@@ -32,6 +32,7 @@ public struct LocationPager: View {
     @State private var showingSearch = false
     @State private var scrollState = PagerScrollState()
     @AppStorage(DS.launchCountKey) private var launchCount = 0
+    @State private var launchCounted = false
     @AppStorage(NotificationPreferences.Key.alertsOffered, store: .shared) private var alertsOffered = false
     @AppStorage(NotificationPreferences.Key.thresholdAlerts, store: .shared) private var thresholdAlerts = false
     @AppStorage(AQIScale.storageKey, store: .shared) private var scale: AQIScale = .usEPA
@@ -114,7 +115,13 @@ public struct LocationPager: View {
                 LocationSearchView(locationManager: locationManager)
             }
             .task {
-                launchCount += 1
+                // This runs again whenever the pager reappears (back from Settings),
+                // which isn't another launch. Counting it here rather than in the app's
+                // init also keeps background refresh launches out of the count.
+                if !launchCounted {
+                    launchCounted = true
+                    launchCount += 1
+                }
                 await locationManager.refreshIfNeeded()
             }
             .onChange(of: locationService.coordinate.map(Coordinate.init)) {

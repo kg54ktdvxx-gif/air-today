@@ -111,4 +111,25 @@ final class PagerUITests: XCTestCase {
             assertShowing(target, after: "choosing \(name) from the menu")
         }
     }
+
+    /// Add City… opens the search sheet, and typing a city lists its stations. On a Mac
+    /// the sheet has a plain text field instead of the system search bar, which quits
+    /// the iPad app there — run this on My Mac (Designed for iPad) to cover that.
+    func testAddCitySearchListsStations() {
+        picker.tap()
+        let addCity = app.buttons["Add City…"]
+        XCTAssertTrue(addCity.waitForExistence(timeout: 5), "Add City… isn't in the city menu")
+        addCity.tap()
+
+        let prompt = "Search cities or stations"
+        let searchBar = app.searchFields.firstMatch
+        let macField = app.textFields.matching(NSPredicate(format: "placeholderValue == %@ OR label == %@", prompt, prompt)).firstMatch
+        XCTAssertTrue(searchBar.waitForExistence(timeout: 5) || macField.waitForExistence(timeout: 5), "The search sheet has no search field")
+        let field = searchBar.exists ? searchBar : macField
+        field.tap()
+        field.typeText("Paris")
+
+        let station = app.collectionViews.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'paris'")).firstMatch
+        XCTAssertTrue(station.waitForExistence(timeout: 20), "Searching for Paris listed no stations")
+    }
 }
