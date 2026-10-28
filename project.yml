@@ -46,8 +46,11 @@ targets:
       base:
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Air Today uses your location to show nearby air quality data."
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+        # Resizable (no UIRequiresFullScreen): iPhone Duo's inner display, iPad Split View and
+        # Stage Manager, and the Mac window size the app; the layout adapts to the space. iPhone
+        # stays portrait; a resizable iPad app declares every orientation.
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
-        INFOPLIST_KEY_UIRequiresFullScreen: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_FILE: AirTodayApp/Info.plist
         INFOPLIST_KEY_UIBackgroundModes: "fetch"
