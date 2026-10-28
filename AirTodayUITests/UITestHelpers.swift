@@ -50,12 +50,17 @@ extension XCUIApplication {
 }
 
 extension XCTestCase {
-    /// Keeps a screenshot of the whole screen in the result bundle.
+    /// Keeps a screenshot of the whole screen in the result bundle: the screen the app is
+    /// on. iPhone Duo has two, and `XCUIScreen.main` is the outer one, black while the
+    /// device is open; the app's window is the size of the screen showing it.
     @MainActor
     func snap(_ name: String) {
         // Content rises in over about a second; let it land before the screenshot.
         RunLoop.current.run(until: Date().addingTimeInterval(1.6))
-        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        let window = XCUIApplication().windows.firstMatch.frame.size
+        let screenshots = XCUIScreen.screens.map { $0.screenshot() }
+        let showing = screenshots.first { abs($0.image.size.width - window.width) < 1 && abs($0.image.size.height - window.height) < 1 }
+        let shot = XCTAttachment(screenshot: showing ?? XCUIScreen.main.screenshot())
         shot.name = name
         shot.lifetime = .keepAlways
         add(shot)
